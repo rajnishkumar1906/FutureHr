@@ -1,0 +1,31 @@
+# FutureHR - HR Recruiter Tasks
+
+## Full List of HR Recruiter Responsibilities in FutureHR
+
+### 1. Dashboard & Overview
+- Access the HR Recruiter dashboard
+- View real-time charts for candidates and recruitment stats
+- See counts for total candidates, attendance records, employees, and payroll records
+
+### 2. Candidate Management
+- View all job candidates in the system
+- Add new candidates to the recruitment pipeline
+- See candidate details (name, email, phone, skills, status, etc.)
+
+### 3. AI-Powered Recruitment
+- Use AI to screen resumes against job descriptions
+- Get detailed AI resume screening results (score, skills match, experience match, analysis, recommendation)
+- Use AI to do full candidate evaluations (strengths, weaknesses, skill gaps, summary, recommendation)
+- Do AI-based voice screening of candidates (transcription, communication score, confidence score, analysis)
+
+### 4. System Access
+- Access all recruitment-focused pages: Dashboard, Candidates, Resume Screening, AI Evaluation, Voice Screening
+- Can switch between dark and light mode using the toggle
+
+---
+Note: HR Recruiter does NOT have access to Employees, Attendance, Payroll, or Performance pages (those are Admin/Employee only)
+
+
+
+
+

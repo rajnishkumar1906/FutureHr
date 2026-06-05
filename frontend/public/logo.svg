@@ -1,0 +1,22 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient circle -->
+  <circle cx="64" cy="64" r="62" fill="url(#bg-gradient)"/>
+  
+  <!-- Main logo: Stylized F and H monogram -->
+  <g transform="translate(24,24)">
+    <!-- F part (white) -->
+    <path d="M16 16h32v12H28v12h20v12H28v20H16V16z" fill="white"/>
+    
+    <!-- H part (golden accent) -->
+    <path d="M68 16h12v64H68v-24H52v24H40V16h12v24h16V16z" fill="#FFD700"/>
+  </g>
+
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="0.5" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,47 @@
+# FutureHR - Admin Tasks
+
+## Full List of Admin Responsibilities in FutureHR
+
+### 1. Dashboard & Overview
+- Access the complete dashboard with all stats
+- View real-time charts (bar chart for overview, pie chart for distribution)
+- See counts for total employees, candidates, attendance records, payroll records
+
+### 2. Employee Management
+- View all employee records in the system
+- Add new employees
+- Edit existing employee details
+- Remove employees if needed
+- Manage departments and designations
+
+### 3. Attendance Management
+- View all attendance records for all employees
+- Add new attendance entries
+- Check who was present/absent on specific dates
+- See check-in and check-out times
+
+### 4. Payroll Management
+- View all payroll records
+- Add new payroll entries
+- See basic salary, allowances, deductions, and net salary for each employee
+- Check payroll status (paid/pending)
+
+### 5. Performance Management
+- View all employee performance goals
+- Add new performance goals and KPIs
+- Track progress on existing goals
+
+### 6. Recruitment & AI Features
+- View all job candidates
+- Add new candidates
+- Use AI to screen resumes against job descriptions
+- Get AI-powered candidate evaluations (strengths, weaknesses, skill gaps)
+- Do AI-based voice screening of candidates
+- Use the AI recruitment chat assistant
+
+### 7. System Access
+- Full access to all pages and features in FutureHR
+- Can switch between dark and light mode using the toggle
+
+---
+Note: Admin is the only role with access to Employees, Attendance, Payroll, and Performance pages (along with all recruitment pages)

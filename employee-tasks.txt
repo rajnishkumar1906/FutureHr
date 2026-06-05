@@ -1,0 +1,33 @@
+# FutureHR - Employee Tasks
+
+## What Employees Actually Do in FutureHR
+
+### 1. Dashboard
+- See a personalized welcome (e.g., "Welcome back, John!")
+- View stats relevant to them
+- See charts for overview
+
+### 2. Attendance
+- View their own attendance records
+- See their own check-in/check-out times
+- See their own attendance status (Present/Absent)
+
+### 3. Payroll
+- View their own payroll slips/records
+- See their own salary details: basic salary, allowances, deductions, and net salary
+- Check if their payroll is paid or pending
+
+### 4. Performance Goals
+- View their own performance goals and KPIs
+- See their progress on goals
+- See their target dates for goals
+
+### 5. Account
+- Can log in and log out
+- Can switch between dark mode and light mode
+
+---
+Key Note for Employees:
+- Employees CANNOT see other employees' data
+- Employees CANNOT access any recruitment features (candidates, resume screening, etc.)
+- Employees can only see and manage their OWN personal HR info
