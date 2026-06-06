@@ -38,30 +38,16 @@ const applyTheme = (isDark) => {
 }
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(getStoredTheme)
+  const [user, setUser] = useState(getStoredUser())
+  const [isAuthenticated, setIsAuthenticated] = useState(!!getStoredUser())
+  const [isDarkMode, setIsDarkMode] = useState(getStoredTheme())
   const [toasts, setToasts] = useState([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Check for stored user on initial load
-    const storedUser = getStoredUser()
-    if (storedUser) {
-      setUser(storedUser)
-      setIsAuthenticated(true)
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      document.documentElement.classList.add('dark')
-      return
-    }
     applyTheme(isDarkMode)
-  }, [isAuthenticated, isDarkMode])
+  }, [isDarkMode])
 
   const formatErrorMessage = (error) => {
     let errorMsg = 'An error occurred'
@@ -77,6 +63,7 @@ export const AppProvider = ({ children }) => {
   }
 
   const login = async (email, password) => {
+    setLoading(true)
     try {
       const response = await authApi.login(email, password)
       const userData = response.data.user
@@ -89,19 +76,23 @@ export const AppProvider = ({ children }) => {
       const errorMsg = formatErrorMessage(error)
       addToast(errorMsg, 'error')
       return false
+    } finally {
+      setLoading(false)
     }
   }
 
   const signup = async (userData) => {
+    setLoading(true)
     try {
       await authApi.register(userData)
-      // After registration, log the user in
-      await login(userData.email, userData.password)
+      addToast('Registration successful! Please login.', 'success')
       return true
     } catch (error) {
       const errorMsg = formatErrorMessage(error)
       addToast(errorMsg, 'error')
       return false
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -109,7 +100,7 @@ export const AppProvider = ({ children }) => {
     try {
       await authApi.logout()
     } catch (error) {
-      // Ignore logout API errors, still clear local state
+      // Ignore logout API errors
     }
     setUser(null)
     setIsAuthenticated(false)
@@ -128,21 +119,13 @@ export const AppProvider = ({ children }) => {
   const addToast = (message, type = 'info') => {
     const id = Date.now()
     setToasts(prev => [...prev, { id, type, message }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 4000)
   }
 
   const removeToast = (id) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-cyan-50 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <img src="/logo.svg" alt="FutureHR Logo" className="w-24 h-24 mx-auto mb-4 animate-pulse" />
-          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-300">Loading...</h2>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -159,7 +142,8 @@ export const AppProvider = ({ children }) => {
         toggleSidebar,
         toasts,
         addToast,
-        removeToast
+        removeToast,
+        loading
       }}
     >
       {children}

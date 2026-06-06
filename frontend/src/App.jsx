@@ -6,40 +6,49 @@ import TopNavbar from './components/TopNavbar'
 import Sidebar from './components/Sidebar'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import Employees from './pages/Employees'
-import Attendance from './pages/Attendance'
-import Payroll from './pages/Payroll'
-import Performance from './pages/Performance'
-import Candidates from './pages/Candidates'
-import ResumeScreening from './pages/ResumeScreening'
-import AIEvaluation from './pages/AIEvaluation'
-import VoiceScreening from './pages/VoiceScreening'
+
+// Admin pages
+import Employees from './pages/admin/Employees.jsx'
+import Attendance from './pages/admin/Attendance.jsx'
+import Payroll from './pages/admin/Payroll.jsx'
+import Performance from './pages/admin/Performance.jsx'
+import Departments from './pages/admin/Departments.jsx'
+import RecruitmentAnalytics from './pages/admin/RecruitmentAnalytics.jsx'
+
+// HR pages
+import Candidates from './pages/hr/Candidates.jsx'
+import Jobs from './pages/hr/Jobs.jsx'
+import ResumeScreening from './pages/hr/ResumeScreening.jsx'
+import AIEvaluation from './pages/hr/AIEvaluation.jsx'
+import VoiceScreening from './pages/hr/VoiceScreening.jsx'
+
+// Manager pages
+import MyTeam from './pages/manager/MyTeam.jsx'
+import LeaveRequests from './pages/manager/LeaveRequests.jsx'
+import TeamPerformance from './pages/manager/TeamPerformance.jsx'
+
+// Employee pages
+import EmployeeAttendance from './pages/employee/EmployeeAttendance.jsx'
+import EmployeePayroll from './pages/employee/EmployeePayroll.jsx'
+import EmployeeGoals from './pages/employee/EmployeeGoals.jsx'
+import EmployeeLeaveRequest from './pages/employee/LeaveRequest.jsx'
 
 const App = () => {
   const { isAuthenticated, user, toasts, removeToast, sidebarCollapsed } = useAppContext()
 
-  const getAllowedRoutes = () => {
+  const getRoleBasedHomePath = () => {
     switch (user?.role) {
-      case 'Admin':
-        return ['/','/employees','/attendance','/payroll','/performance','/candidates','/resume-screening','/ai-evaluation','/voice-screening']
+      case 'Management Admin':
+        return '/admin/dashboard'
       case 'HR Recruiter':
-        return ['/','/candidates','/resume-screening','/ai-evaluation','/voice-screening']
+        return '/hr/dashboard'
+      case 'Senior Manager':
+        return '/manager/dashboard'
       case 'Employee':
-        return ['/','/attendance','/payroll','/performance']
+        return '/employee/dashboard'
       default:
-        return ['/']
+        return '/'
     }
-  }
-
-  const isRouteAllowed = (path) => {
-    return getAllowedRoutes().includes(path)
-  }
-
-  const ProtectedRoute = ({ children, path }) => {
-    if (!isRouteAllowed(path)) {
-      return <Navigate to="/" replace />
-    }
-    return children
   }
 
   if (!isAuthenticated) {
@@ -62,48 +71,41 @@ const App = () => {
         <Sidebar />
         <main className={`pt-20 transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/employees" element={
-              <ProtectedRoute path="/employees">
-                <Employees />
-              </ProtectedRoute>
-            } />
-            <Route path="/attendance" element={
-              <ProtectedRoute path="/attendance">
-                <Attendance />
-              </ProtectedRoute>
-            } />
-            <Route path="/payroll" element={
-              <ProtectedRoute path="/payroll">
-                <Payroll />
-              </ProtectedRoute>
-            } />
-            <Route path="/performance" element={
-              <ProtectedRoute path="/performance">
-                <Performance />
-              </ProtectedRoute>
-            } />
-            <Route path="/candidates" element={
-              <ProtectedRoute path="/candidates">
-                <Candidates />
-              </ProtectedRoute>
-            } />
-            <Route path="/resume-screening" element={
-              <ProtectedRoute path="/resume-screening">
-                <ResumeScreening />
-              </ProtectedRoute>
-            } />
-            <Route path="/ai-evaluation" element={
-              <ProtectedRoute path="/ai-evaluation">
-                <AIEvaluation />
-              </ProtectedRoute>
-            } />
-            <Route path="/voice-screening" element={
-              <ProtectedRoute path="/voice-screening">
-                <VoiceScreening />
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Role-based Dashboard Routes */}
+            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/hr/dashboard" element={<Dashboard />} />
+            <Route path="/manager/dashboard" element={<Dashboard />} />
+            <Route path="/employee/dashboard" element={<Dashboard />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin/employees" element={<Employees />} />
+            <Route path="/admin/departments" element={<Departments />} />
+            <Route path="/admin/attendance" element={<Attendance />} />
+            <Route path="/admin/payroll" element={<Payroll />} />
+            <Route path="/admin/performance" element={<Performance />} />
+            <Route path="/admin/recruitment" element={<RecruitmentAnalytics />} />
+
+            {/* HR Recruiter Routes */}
+            <Route path="/hr/candidates" element={<Candidates />} />
+            <Route path="/hr/jobs" element={<Jobs />} />
+            <Route path="/hr/resume-screening" element={<ResumeScreening />} />
+            <Route path="/hr/ai-evaluation" element={<AIEvaluation />} />
+            <Route path="/hr/voice-screening" element={<VoiceScreening />} />
+
+            {/* Senior Manager Routes */}
+            <Route path="/manager/team" element={<MyTeam />} />
+            <Route path="/manager/leaves" element={<LeaveRequests />} />
+            <Route path="/manager/performance" element={<TeamPerformance />} />
+
+            {/* Employee Routes */}
+            <Route path="/employee/attendance" element={<EmployeeAttendance />} />
+            <Route path="/employee/payroll" element={<EmployeePayroll />} />
+            <Route path="/employee/goals" element={<EmployeeGoals />} />
+            <Route path="/employee/leave" element={<EmployeeLeaveRequest />} />
+
+            {/* Default redirect based on role */}
+            <Route path="/" element={<Navigate to={getRoleBasedHomePath()} replace />} />
+            <Route path="*" element={<Navigate to={getRoleBasedHomePath()} replace />} />
           </Routes>
         </main>
       </div>
