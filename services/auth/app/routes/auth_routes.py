@@ -106,6 +106,7 @@ async def get_users(role: str = None):
 
 
 @router.post("/internal/promote-employee")
+@router.post("/promote-employee")
 async def promote_to_employee(data: dict):
     """Called by AI recruitment service when a candidate is hired."""
     email = data.get("email")

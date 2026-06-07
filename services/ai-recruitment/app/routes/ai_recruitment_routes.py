@@ -781,7 +781,7 @@ async def hire_candidate(application_id: int):
         auth_error = None
         try:
             import httpx
-            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee"
+            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/promote-employee"
             print(f"Hire: Calling auth service at {auth_url}")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(
@@ -863,7 +863,7 @@ async def sync_candidate_to_employee(candidate_id: int):
         auth_user_id = None
         temp_password = None
         try:
-            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee"
+            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/promote-employee"
             print(f"Sync: Calling auth service at {auth_url}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 res = await client.post(
