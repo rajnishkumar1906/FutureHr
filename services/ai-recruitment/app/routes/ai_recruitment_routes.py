@@ -160,7 +160,7 @@ async def update_job(job_id: int, job: JobUpdate):
             raise HTTPException(status_code=404, detail="Job not found")
         
         # Regenerate voice questions for updated job
-        questions = generate_voice_questions(job.title, job.description or "", job.requirements or "")
+        questions = await generate_voice_questions(job.title, job.description or "", job.requirements or "")
         
         # Check if voice questions exist for this job, if not insert
         existing_questions = await conn.fetchrow("SELECT id FROM voice_questions WHERE job_id = $1", job_id)
