@@ -535,6 +535,7 @@ async def get_resume_screening(application_id: int):
                 c.first_name || ' ' || c.last_name AS candidate_name,
                 c.skills AS extracted_skills_json,
                 c.experience AS extracted_projects_json,
+                c.resume_text,
                 j.title AS job_title
             FROM resume_screenings rs
             LEFT JOIN candidates c ON rs.candidate_id = c.id
@@ -563,6 +564,7 @@ async def get_resume_screenings():
                 c.first_name || ' ' || c.last_name AS candidate_name,
                 c.skills AS extracted_skills_json,
                 c.experience AS extracted_projects_json,
+                c.resume_text,
                 j.title AS job_title
             FROM resume_screenings rs
             LEFT JOIN candidates c ON rs.candidate_id = c.id
@@ -638,6 +640,29 @@ async def submit_voice_answers(application_id: int, request: SubmitVoiceAnswersR
         await conn.close()
 
 
+async def _attach_transcript(conn, screening_dict: dict) -> dict:
+    """Fetch Q&A pairs from voice_answers + voice_questions and attach as transcript."""
+    app_id = screening_dict.get("application_id")
+    if not app_id:
+        return screening_dict
+    answers = await conn.fetch(
+        "SELECT question_index, answer FROM voice_answers WHERE application_id = $1 ORDER BY question_index",
+        app_id
+    )
+    application = await conn.fetchrow("SELECT job_id FROM applications WHERE id = $1", app_id)
+    questions_row = None
+    if application:
+        questions_row = await conn.fetchrow("SELECT questions FROM voice_questions WHERE job_id = $1", application["job_id"])
+    questions = json.loads(questions_row["questions"]) if questions_row else []
+    transcript = [
+        {"question": questions[row["question_index"]] if row["question_index"] < len(questions) else f"Q{row['question_index']+1}",
+         "answer": row["answer"]}
+        for row in answers
+    ]
+    screening_dict["transcript"] = transcript
+    return screening_dict
+
+
 @router.get("/applications/{application_id}/voice-screening", response_model=Optional[VoiceScreeningResponse])
 async def get_voice_screening(application_id: int):
     conn = await get_db_connection()
@@ -645,8 +670,8 @@ async def get_voice_screening(application_id: int):
         screening = await conn.fetchrow("SELECT * FROM voice_screenings WHERE application_id = $1", application_id)
         if not screening:
             return None
-        
-        return dict(screening)
+        result = dict(screening)
+        return await _attach_transcript(conn, result)
     finally:
         await conn.close()
 
@@ -665,7 +690,12 @@ async def get_voice_screenings():
             LEFT JOIN applications a ON vs.application_id = a.id
             LEFT JOIN jobs j ON a.job_id = j.id
         """)
-        return [dict(s) for s in screenings]
+        result = []
+        for s in screenings:
+            row = dict(s)
+            row = await _attach_transcript(conn, row)
+            result.append(row)
+        return result
     finally:
         await conn.close()
 

@@ -171,7 +171,7 @@ Scoring guidance:
             "overall_score": 50,
             "candidate_name": "", "candidate_email": "",
             "recommendation": "Consider",
-            "analysis": "AI analysis unavailable — manual review required.",
+            "analysis": "AI analysis unavailable — please review the resume manually.",
             "summary": "", "strengths": "", "weaknesses": "", "skill_gaps": "",
             "top_skills": [], "extracted_skills": [], "extracted_projects": [],
             "extracted_education": "", "extracted_certifications": "",

@@ -339,6 +339,16 @@ const ResumeScreening = () => {
                                 )}
                             </div>
 
+                            {/* Full Resume Content */}
+                            {selectedScreening.resume_text && (
+                                <div>
+                                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">📄 Resume Content</h4>
+                                    <pre className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto font-mono">
+                                        {selectedScreening.resume_text}
+                                    </pre>
+                                </div>
+                            )}
+
                             {/* Action buttons */}
                             <div className="flex flex-wrap gap-3 pt-2 border-t dark:border-gray-700">
                                 <button

@@ -404,6 +404,25 @@ const VoiceScreening = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{selectedScreening.analysis}</p>
               </div>
 
+              {/* Interview Transcript */}
+              {selectedScreening.transcript?.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">🎙️ Interview Transcript</h4>
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {selectedScreening.transcript.map((item, i) => (
+                      <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                          Q{i + 1}: {item.question}
+                        </div>
+                        <div className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-white dark:bg-gray-800">
+                          {item.answer || <span className="italic text-gray-400">No answer recorded</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* actions */}
               <div className="grid grid-cols-3 gap-3 pt-2">
                 <button
