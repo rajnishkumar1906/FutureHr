@@ -9,3 +9,7 @@ python-dotenv
 google-genai
 pydantic[email]
 PyPDF2
+scikit-learn
+joblib
+numpy
+pytest
