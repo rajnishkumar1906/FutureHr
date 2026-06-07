@@ -7,6 +7,16 @@ const Payroll = () => {
   const { addToast } = useAppContext()
   const [payroll, setPayroll] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [generateForm, setGenerateForm] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    basic_salary: 30000,
+    allowances: 0,
+    deductions: 0,
+    user_id: null
+  })
 
   useEffect(() => { fetchPayroll() }, [])
 
@@ -20,6 +30,20 @@ const Payroll = () => {
       setPayroll([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGeneratePayroll = async () => {
+    setGenerating(true)
+    try {
+      await hrmsApi.generatePayroll(generateForm)
+      addToast('Payroll generated successfully!', 'success')
+      setShowGenerateModal(false)
+      fetchPayroll()
+    } catch {
+      addToast('Failed to generate payroll', 'error')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -61,10 +85,104 @@ const Payroll = () => {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Payroll</h1>
-        <p className="text-gray-600 dark:text-gray-400">Manage employee payroll and salaries</p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Payroll</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage employee payroll and salaries</p>
+        </div>
+        <button
+          onClick={() => setShowGenerateModal(true)}
+          className="mt-4 md:mt-0 px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:from-indigo-600 hover:to-indigo-700 transition-all"
+        >
+          Generate Payroll
+        </button>
       </div>
+
+      {/* Generate Payroll Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Generate Payroll</h2>
+                <button
+                  onClick={() => setShowGenerateModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Month</label>
+                  <select
+                    value={generateForm.month}
+                    onChange={(e) => setGenerateForm({ ...generateForm, month: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {months.map((m, i) => (
+                      <option key={i} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Year</label>
+                  <input
+                    type="number"
+                    value={generateForm.year}
+                    onChange={(e) => setGenerateForm({ ...generateForm, year: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Basic Salary</label>
+                <input
+                  type="number"
+                  value={generateForm.basic_salary}
+                  onChange={(e) => setGenerateForm({ ...generateForm, basic_salary: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Allowances</label>
+                <input
+                  type="number"
+                  value={generateForm.allowances}
+                  onChange={(e) => setGenerateForm({ ...generateForm, allowances: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deductions</label>
+                <input
+                  type="number"
+                  value={generateForm.deductions}
+                  onChange={(e) => setGenerateForm({ ...generateForm, deductions: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button
+                  onClick={() => setShowGenerateModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleGeneratePayroll}
+                  disabled={generating}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-indigo-700 disabled:opacity-50"
+                >
+                  {generating ? 'Generating...' : 'Generate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {payroll.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
