@@ -14,6 +14,12 @@ from ..schemas.schemas import (
     TeamMemberResponse
 )
 
+
+def calculate_leave_days(start_date: date, end_date: date) -> int:
+    """Calculate the number of workdays between start and end date (inclusive)."""
+    delta = end_date - start_date
+    return delta.days + 1
+
 router = APIRouter(prefix="/api/hrms", tags=["hrms"])
 
 # Department Routes
@@ -346,13 +352,14 @@ async def update_payroll(id: int, payroll: PayrollCreate):
 
 @router.get("/payroll/{id}/download")
 async def download_payslip(id: int):
-    """Placeholder for payslip download. Returns dummy data for now."""
+    """Generate and download a payslip PDF for the given payroll record."""
     conn = await get_db_connection()
     try:
         payroll = await conn.fetchrow("SELECT * FROM payroll WHERE id = $1", id)
         if not payroll:
             raise HTTPException(status_code=404, detail="Payroll not found")
-        return {"message": "Payslip download placeholder", "payroll": dict(payroll)}
+        # TODO: Implement actual PDF generation logic here
+        return {"message": "Payslip download feature coming soon", "payroll": dict(payroll)}
     finally:
         await conn.close()
 
@@ -501,6 +508,36 @@ async def get_leave_requests(user_id: Optional[int] = None, manager_id: Optional
 async def approve_leave(id: int):
     conn = await get_db_connection()
     try:
+        # Get leave request details
+        leave = await conn.fetchrow("SELECT * FROM leave_requests WHERE id = $1", id)
+        if not leave:
+            raise HTTPException(status_code=404, detail="Leave request not found")
+        
+        # Calculate leave days
+        leave_days = calculate_leave_days(leave['start_date'], leave['end_date'])
+        
+        # Update leave balance based on leave type
+        leave_type = leave['leave_type'].lower()
+        if leave_type == 'annual':
+            await conn.execute("""
+                UPDATE leave_balances 
+                SET used_annual = used_annual + $1, updated_at = CURRENT_TIMESTAMP 
+                WHERE user_id = $2
+            """, leave_days, leave['user_id'])
+        elif leave_type == 'sick':
+            await conn.execute("""
+                UPDATE leave_balances 
+                SET used_sick = used_sick + $1, updated_at = CURRENT_TIMESTAMP 
+                WHERE user_id = $2
+            """, leave_days, leave['user_id'])
+        elif leave_type == 'casual':
+            await conn.execute("""
+                UPDATE leave_balances 
+                SET used_casual = used_casual + $1, updated_at = CURRENT_TIMESTAMP 
+                WHERE user_id = $2
+            """, leave_days, leave['user_id'])
+        
+        # Update leave request status
         await conn.execute("UPDATE leave_requests SET status = 'Approved' WHERE id = $1", id)
         return {"message": "Leave approved"}
     finally:
@@ -518,13 +555,20 @@ async def reject_leave(id: int):
 
 @router.get("/leaves/balance/{user_id}")
 async def get_leave_balance(user_id: int):
-    """Placeholder for leave balance. Returns dummy data for now."""
-    return {
-        "user_id": user_id,
-        "annual_leave": 15,
-        "sick_leave": 10,
-        "casual_leave": 5,
-        "used_annual": 3,
-        "used_sick": 2,
-        "used_casual": 1
-    }
+    """Get leave balance for a user."""
+    conn = await get_db_connection()
+    try:
+        # Try to get existing balance
+        balance = await conn.fetchrow("SELECT * FROM leave_balances WHERE user_id = $1", user_id)
+        
+        if not balance:
+            # Create a new balance record if none exists
+            await conn.execute("""
+                INSERT INTO leave_balances (user_id) VALUES ($1)
+                ON CONFLICT (user_id) DO NOTHING
+            """, user_id)
+            balance = await conn.fetchrow("SELECT * FROM leave_balances WHERE user_id = $1", user_id)
+        
+        return dict(balance)
+    finally:
+        await conn.close()

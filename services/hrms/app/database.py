@@ -71,6 +71,21 @@ async def init_db():
         )
     """)
     
+    # Leave balances table
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS leave_balances (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL UNIQUE,
+            annual_leave INTEGER DEFAULT 15,
+            sick_leave INTEGER DEFAULT 10,
+            casual_leave INTEGER DEFAULT 5,
+            used_annual INTEGER DEFAULT 0,
+            used_sick INTEGER DEFAULT 0,
+            used_casual INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     # Create attendance table
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS attendance (
