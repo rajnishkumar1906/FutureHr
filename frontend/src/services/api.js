@@ -21,10 +21,10 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      const stored = localStorage.getItem('user')
+      const stored = localStorage.getItem('futurehr-user')
       let role = null
       try { role = JSON.parse(stored)?.role } catch { /* ignore */ }
-      localStorage.removeItem('user')
+      localStorage.removeItem('futurehr-user')
       if (role === 'Candidate') {
         window.location.href = '/careers/login'
       } else if (role === 'Management Admin') {
