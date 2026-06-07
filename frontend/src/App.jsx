@@ -164,7 +164,11 @@ const App = () => {
             </div>
           } />
         ) : (
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={
+            isAuthenticated && (user?.role === 'Candidate' || user?.role === 'Employee') 
+              ? <Navigate to="/careers/status" replace /> 
+              : <Navigate to="/login" replace />
+          } />
         )}
       </Routes>
     </BrowserRouter>
