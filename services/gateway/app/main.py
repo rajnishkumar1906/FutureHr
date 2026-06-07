@@ -94,6 +94,10 @@ async def proxy(request: Request, path: str):
 
     headers = dict(request.headers)
     headers.pop("host", None)
+    # Remove accept-encoding so httpx manages decompression internally;
+    # otherwise the backend gzips the response, httpx passes raw bytes through,
+    # and the gateway strips content-encoding — leaving the client with binary data.
+    headers.pop("accept-encoding", None)
 
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
