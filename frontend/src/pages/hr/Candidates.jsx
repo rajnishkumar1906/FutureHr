@@ -6,6 +6,7 @@ const Candidates = () => {
     const { addToast } = useAppContext()
     const [candidates, setCandidates] = useState([])
     const [loading, setLoading] = useState(true)
+    const [syncing, setSyncing] = useState(null)
 
     useEffect(() => {
         fetchCandidates()
@@ -21,6 +22,18 @@ const Candidates = () => {
             setCandidates([])
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleSync = async (candidate) => {
+        setSyncing(candidate.id)
+        try {
+            await aiRecruitmentApi.syncCandidateToEmployee(candidate.id)
+            addToast(`${candidate.first_name} synced to Employees successfully!`, 'success')
+        } catch (err) {
+            addToast(err.response?.data?.detail || 'Sync failed', 'error')
+        } finally {
+            setSyncing(null)
         }
     }
 
@@ -55,6 +68,7 @@ const Candidates = () => {
                             <th className="px-6 py-4 text-left">Email</th>
                             <th className="px-6 py-4 text-left">Phone</th>
                             <th className="px-6 py-4 text-left">Status</th>
+                            <th className="px-6 py-4 text-left">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -69,6 +83,20 @@ const Candidates = () => {
                                     <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(candidate.status)}`}>
                                         {candidate.status}
                                     </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    {candidate.status === 'Hired' && (
+                                        <button
+                                            onClick={() => handleSync(candidate)}
+                                            disabled={syncing === candidate.id}
+                                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                                        >
+                                            {syncing === candidate.id ? (
+                                                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                                            ) : '🔄'}
+                                            Sync to Employee
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

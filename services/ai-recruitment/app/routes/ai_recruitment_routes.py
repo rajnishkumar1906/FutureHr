@@ -827,6 +827,75 @@ async def hire_candidate(application_id: int):
         await conn.close()
 
 
+@router.post("/candidates/{candidate_id}/sync-employee")
+async def sync_candidate_to_employee(candidate_id: int):
+    """Re-trigger promote-employee + HRMS upsert for a hired candidate who is missing from Employees."""
+    conn = await get_db_connection()
+    try:
+        candidate = await conn.fetchrow("SELECT * FROM candidates WHERE id = $1", candidate_id)
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        if candidate["status"] != "Hired":
+            raise HTTPException(status_code=400, detail="Candidate is not hired yet")
+
+        import httpx
+        errors = []
+
+        # 1. Promote in auth service
+        auth_user_id = None
+        temp_password = None
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(
+                    f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee",
+                    json={
+                        "email":      candidate["email"],
+                        "first_name": candidate["first_name"],
+                        "last_name":  candidate["last_name"],
+                    }
+                )
+                if res.status_code == 200:
+                    body = res.json()
+                    auth_user_id  = body.get("user_id")
+                    temp_password = body.get("temp_password")
+                else:
+                    errors.append(f"Auth promote failed: {res.status_code} {res.text}")
+        except Exception as e:
+            errors.append(f"Auth promote error: {e}")
+
+        # 2. Upsert HRMS employee record
+        if auth_user_id:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    res = await client.post(
+                        f"{settings.HRMS_SERVICE_URL}/api/hrms/employees",
+                        json={
+                            "user_id":         auth_user_id,
+                            "email":           candidate["email"],
+                            "first_name":      candidate["first_name"],
+                            "last_name":       candidate["last_name"],
+                            "date_of_joining": str(__import__('datetime').date.today()),
+                        },
+                        headers={"X-Internal-Key": settings.INTERNAL_API_KEY},
+                    )
+                    if res.status_code not in (200, 201):
+                        errors.append(f"HRMS upsert failed: {res.status_code} {res.text}")
+            except Exception as e:
+                errors.append(f"HRMS upsert error: {e}")
+
+        if errors:
+            raise HTTPException(status_code=500, detail="; ".join(errors))
+
+        return {
+            "message":      "Candidate synced to employee successfully",
+            "email":        candidate["email"],
+            "auth_user_id": auth_user_id,
+            "temp_password": temp_password,
+        }
+    finally:
+        await conn.close()
+
+
 # ==================== AI Chat Route ====================
 @router.post("/chat")
 async def chat_route(request: ChatRequest):

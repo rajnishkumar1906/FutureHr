@@ -156,6 +156,7 @@ export const aiRecruitmentApi = {
   
   // ==================== HIRE CANDIDATE ====================
   hireCandidate: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/hire`),
+  syncCandidateToEmployee: (candidateId) => apiClient.post(`/api/ai-recruitment/candidates/${candidateId}/sync-employee`),
 
   // ==================== VOICE SCREENING INVITE ====================
   sendVoiceInvite: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/send-voice-invite`),
