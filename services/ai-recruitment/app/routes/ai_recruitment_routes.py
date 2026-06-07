@@ -781,7 +781,10 @@ async def hire_candidate(application_id: int):
         auth_error = None
         try:
             import httpx
-            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/promote-employee"
+            # Sanitize URLs to remove trailing slashes and commas
+            auth_base = settings.AUTH_SERVICE_URL.rstrip("/,")
+            auth_url = f"{auth_base}/api/auth/internal/promote-employee"
+            print(f"Hire: AUTH_SERVICE_URL={settings.AUTH_SERVICE_URL}, auth_base={auth_base}")
             print(f"Hire: Calling auth service at {auth_url}")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(
@@ -811,16 +814,18 @@ async def hire_candidate(application_id: int):
         if auth_user_id:
             try:
                 import httpx as _httpx
-                hrms_url = f"{settings.HRMS_SERVICE_URL}/api/hrms/employees"
+                hrms_base = settings.HRMS_SERVICE_URL.rstrip("/,")
+                hrms_url = f"{hrms_base}/api/hrms/employees"
+                print(f"Hire: HRMS_SERVICE_URL={settings.HRMS_SERVICE_URL}, hrms_base={hrms_base}")
                 print(f"Hire: Calling HRMS service at {hrms_url}")
                 async with _httpx.AsyncClient(timeout=10.0) as client:
                     await client.post(
                         hrms_url,
                         json={
-                            "user_id":        auth_user_id,
-                            "email":          candidate["email"],
-                            "first_name":     candidate["first_name"],
-                            "last_name":      candidate["last_name"],
+                            "user_id":         auth_user_id,
+                            "email":           candidate["email"],
+                            "first_name":      candidate["first_name"],
+                            "last_name":       candidate["last_name"],
                             "date_of_joining": str(__import__('datetime').date.today()),
                         },
                         headers={"X-Internal-Key": settings.INTERNAL_API_KEY},
@@ -863,7 +868,10 @@ async def sync_candidate_to_employee(candidate_id: int):
         auth_user_id = None
         temp_password = None
         try:
-            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/promote-employee"
+            # Sanitize URLs to remove trailing slashes and commas
+            auth_base = settings.AUTH_SERVICE_URL.rstrip("/,")
+            auth_url = f"{auth_base}/api/auth/internal/promote-employee"
+            print(f"Sync: AUTH_SERVICE_URL={settings.AUTH_SERVICE_URL}, auth_base={auth_base}")
             print(f"Sync: Calling auth service at {auth_url}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 res = await client.post(
@@ -889,7 +897,9 @@ async def sync_candidate_to_employee(candidate_id: int):
         # 2. Upsert HRMS employee record
         if auth_user_id:
             try:
-                hrms_url = f"{settings.HRMS_SERVICE_URL}/api/hrms/employees"
+                hrms_base = settings.HRMS_SERVICE_URL.rstrip("/,")
+                hrms_url = f"{hrms_base}/api/hrms/employees"
+                print(f"Sync: HRMS_SERVICE_URL={settings.HRMS_SERVICE_URL}, hrms_base={hrms_base}")
                 print(f"Sync: Calling HRMS service at {hrms_url}")
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     res = await client.post(
