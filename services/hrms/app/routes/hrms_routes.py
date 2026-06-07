@@ -321,7 +321,14 @@ async def get_attendance_summary(user_id: int, month: int = None, year: int = No
 
 # Payroll Routes
 @router.post("/payroll", response_model=PayrollResponse, status_code=status.HTTP_201_CREATED)
-async def create_payroll(payroll: PayrollCreate):
+async def create_payroll(payroll: PayrollCreate, current_user: dict = Depends(get_current_user)):
+    """Only Management Admin can create payroll manually"""
+    if current_user["role"] != "Management Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Management Admin can create payroll"
+        )
+    
     conn = await get_db_connection()
     try:
         net_salary = payroll.basic_salary + payroll.allowances - payroll.deductions
@@ -339,20 +346,35 @@ async def create_payroll(payroll: PayrollCreate):
         await conn.close()
 
 @router.get("/payroll", response_model=List[PayrollResponse])
-async def get_payroll(user_id: int = None):
+async def get_payroll(user_id: int = None, current_user: dict = Depends(get_current_user)):
+    """
+    Management Admin and HR Recruiter: can see all payroll
+    Employee: can only see their own payroll
+    """
     conn = await get_db_connection()
     try:
-        if user_id:
+        if current_user["role"] == "Employee":
+            # Employees can only see their own payroll
+            payroll_records = await conn.fetch("SELECT * FROM payroll WHERE user_id = $1", current_user["id"])
+        elif user_id:
+            # Admin/HR can filter by user_id
             payroll_records = await conn.fetch("SELECT * FROM payroll WHERE user_id = $1", user_id)
         else:
+            # Admin/HR can see all
             payroll_records = await conn.fetch("SELECT * FROM payroll")
         return [dict(p) for p in payroll_records]
     finally:
         await conn.close()
 
 @router.post("/payroll/generate")
-async def generate_payroll(data: dict):
-    """Generate payroll for employees (optionally filtered by user_id, month, year)"""
+async def generate_payroll(data: dict, current_user: dict = Depends(get_current_user)):
+    """Only Management Admin can generate payroll"""
+    if current_user["role"] != "Management Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Management Admin can generate payroll"
+        )
+    
     user_id = data.get("user_id")
     month = data.get("month")
     year = data.get("year")
@@ -427,8 +449,18 @@ async def generate_payroll(data: dict):
         await conn.close()
 
 @router.get("/payroll/employee/{user_id}", response_model=List[PayrollResponse])
-async def get_payroll_by_employee(user_id: int):
-    """Get payroll records for a specific employee."""
+async def get_payroll_by_employee(user_id: int, current_user: dict = Depends(get_current_user)):
+    """
+    Get payroll records for a specific employee.
+    Employees can only access their own payroll.
+    """
+    # Check if user is trying to access someone else's payroll
+    if current_user["role"] == "Employee" and current_user["id"] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view your own payroll"
+        )
+    
     conn = await get_db_connection()
     try:
         payroll_records = await conn.fetch("SELECT * FROM payroll WHERE user_id = $1 ORDER BY year DESC, month DESC", user_id)
@@ -437,18 +469,33 @@ async def get_payroll_by_employee(user_id: int):
         await conn.close()
 
 @router.get("/payroll/{id}", response_model=PayrollResponse)
-async def get_payroll_by_id(id: int):
+async def get_payroll_by_id(id: int, current_user: dict = Depends(get_current_user)):
     conn = await get_db_connection()
     try:
         payroll = await conn.fetchrow("SELECT * FROM payroll WHERE id = $1", id)
         if not payroll:
             raise HTTPException(status_code=404, detail="Payroll not found")
+        
+        # Check if employee is trying to access someone else's payroll
+        if current_user["role"] == "Employee" and payroll["user_id"] != current_user["id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view your own payroll"
+            )
+        
         return dict(payroll)
     finally:
         await conn.close()
 
 @router.put("/payroll/{id}", response_model=PayrollResponse)
-async def update_payroll(id: int, payroll: PayrollCreate):
+async def update_payroll(id: int, payroll: PayrollCreate, current_user: dict = Depends(get_current_user)):
+    """Only Management Admin can update payroll"""
+    if current_user["role"] != "Management Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Management Admin can update payroll"
+        )
+    
     conn = await get_db_connection()
     try:
         net_salary = payroll.basic_salary + payroll.allowances - payroll.deductions

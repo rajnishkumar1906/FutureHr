@@ -4,7 +4,7 @@ import { useAppContext } from '../../contexts/AppContext.jsx'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const Payroll = () => {
-  const { addToast } = useAppContext()
+  const { user, addToast } = useAppContext()
   const [payroll, setPayroll] = useState([])
   const [loading, setLoading] = useState(true)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
@@ -90,12 +90,14 @@ const Payroll = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Payroll</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage employee payroll and salaries</p>
         </div>
-        <button
-          onClick={() => setShowGenerateModal(true)}
-          className="mt-4 md:mt-0 px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:from-indigo-600 hover:to-indigo-700 transition-all"
-        >
-          Generate Payroll
-        </button>
+        {user?.role === "Management Admin" && (
+          <button
+            onClick={() => setShowGenerateModal(true)}
+            className="mt-4 md:mt-0 px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:from-indigo-600 hover:to-indigo-700 transition-all"
+          >
+            Generate Payroll
+          </button>
+        )}
       </div>
 
       {/* Generate Payroll Modal */}
