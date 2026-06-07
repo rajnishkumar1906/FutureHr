@@ -12,7 +12,6 @@ from ..schemas.schemas import (
     PayrollCreate, PayrollResponse,
     PerformanceGoalCreate, PerformanceGoalResponse,
     LeaveRequestCreate, LeaveRequestResponse,
-    TeamMemberResponse
 )
 
 
@@ -161,6 +160,17 @@ async def create_employee(employee: EmployeeCreate):
             employee.manager_id,
             employee.date_of_joining, employee.phone, employee.gender
         )
+        
+        # Automatically create leave balance for new employee
+        await conn.execute(
+            """
+            INSERT INTO leave_balances (user_id)
+            VALUES ($1)
+            ON CONFLICT (user_id) DO NOTHING
+            """,
+            employee.user_id
+        )
+        
         return dict(new_emp)
     finally:
         await conn.close()

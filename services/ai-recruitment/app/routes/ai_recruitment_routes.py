@@ -778,32 +778,44 @@ async def hire_candidate(application_id: int):
         # 1. Promote in auth service → get the new user's ID
         temp_password = None
         auth_user_id  = None
+        auth_error = None
         try:
             import httpx
+            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee"
+            print(f"Hire: Calling auth service at {auth_url}")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(
-                    f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee",
+                    auth_url,
                     json={
                         "email":      candidate["email"],
                         "first_name": candidate["first_name"],
                         "last_name":  candidate["last_name"],
                     }
                 )
+                print(f"Hire: Auth service response status: {res.status_code}")
                 if res.status_code == 200:
                     body = res.json()
                     temp_password = body.get("temp_password")
                     auth_user_id  = body.get("user_id")
+                    print(f"Hire: Got auth_user_id: {auth_user_id}")
+                else:
+                    auth_error = f"Auth service returned {res.status_code}: {res.text}"
+                    print(f"Hire: {auth_error}")
         except Exception as e:
-            print(f"Failed to promote candidate in auth service: {e}")
+            auth_error = f"Failed to connect to auth service: {str(e)}"
+            print(f"Hire: {auth_error}")
 
         # 2. Upsert an HRMS employee record so the employee appears in Employees page
         #    and can have a manager assigned immediately.
+        hrms_error = None
         if auth_user_id:
             try:
                 import httpx as _httpx
+                hrms_url = f"{settings.HRMS_SERVICE_URL}/api/hrms/employees"
+                print(f"Hire: Calling HRMS service at {hrms_url}")
                 async with _httpx.AsyncClient(timeout=10.0) as client:
                     await client.post(
-                        f"{settings.HRMS_SERVICE_URL}/api/hrms/employees",
+                        hrms_url,
                         json={
                             "user_id":        auth_user_id,
                             "email":          candidate["email"],
@@ -813,14 +825,18 @@ async def hire_candidate(application_id: int):
                         },
                         headers={"X-Internal-Key": settings.INTERNAL_API_KEY},
                     )
+                print("Hire: HRMS employee upsert successful")
             except Exception as e:
-                print(f"HRMS employee upsert failed (non-fatal): {e}")
+                hrms_error = f"HRMS employee upsert failed: {str(e)}"
+                print(f"Hire: {hrms_error}")
 
         return {
             "message":      "Candidate hired successfully",
             "email":        candidate["email"],
             "auth_user_id": auth_user_id,
             "temp_password": temp_password,
+            "auth_error": auth_error,
+            "hrms_error": hrms_error,
             "next_steps":   "Assign a manager in the Employees page, then the employee can login at /login.",
         }
     finally:
@@ -845,30 +861,37 @@ async def sync_candidate_to_employee(candidate_id: int):
         auth_user_id = None
         temp_password = None
         try:
+            auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee"
+            print(f"Sync: Calling auth service at {auth_url}")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(
-                    f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee",
+                    auth_url,
                     json={
                         "email":      candidate["email"],
                         "first_name": candidate["first_name"],
                         "last_name":  candidate["last_name"],
                     }
                 )
+                print(f"Sync: Auth service response status: {res.status_code}")
                 if res.status_code == 200:
                     body = res.json()
                     auth_user_id  = body.get("user_id")
                     temp_password = body.get("temp_password")
+                    print(f"Sync: Got auth_user_id: {auth_user_id}")
                 else:
                     errors.append(f"Auth promote failed: {res.status_code} {res.text}")
         except Exception as e:
-            errors.append(f"Auth promote error: {e}")
+            errors.append(f"Auth promote error: {str(e)}")
+            print(f"Sync: Auth error: {errors[-1]}")
 
         # 2. Upsert HRMS employee record
         if auth_user_id:
             try:
+                hrms_url = f"{settings.HRMS_SERVICE_URL}/api/hrms/employees"
+                print(f"Sync: Calling HRMS service at {hrms_url}")
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     res = await client.post(
-                        f"{settings.HRMS_SERVICE_URL}/api/hrms/employees",
+                        hrms_url,
                         json={
                             "user_id":         auth_user_id,
                             "email":           candidate["email"],
@@ -878,10 +901,14 @@ async def sync_candidate_to_employee(candidate_id: int):
                         },
                         headers={"X-Internal-Key": settings.INTERNAL_API_KEY},
                     )
+                    print(f"Sync: HRMS response status: {res.status_code}")
                     if res.status_code not in (200, 201):
                         errors.append(f"HRMS upsert failed: {res.status_code} {res.text}")
+                    else:
+                        print("Sync: HRMS upsert successful")
             except Exception as e:
-                errors.append(f"HRMS upsert error: {e}")
+                errors.append(f"HRMS upsert error: {str(e)}")
+                print(f"Sync: HRMS error: {errors[-1]}")
 
         if errors:
             raise HTTPException(status_code=500, detail="; ".join(errors))
