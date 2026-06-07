@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import init_db
 from .routes import auth_routes
+from .config import settings
 import asyncio
 
 async def on_startup():
@@ -11,7 +12,7 @@ app = FastAPI(title="FutureHR Auth Service", version="1.0.0", on_startup=[on_sta
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,9 +21,9 @@ app.add_middleware(
 app.include_router(auth_routes.router)
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "FutureHR Auth Service is running"}
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "healthy"}

@@ -1,9 +1,11 @@
-﻿import React from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
+import CandidateNavbar from '../../components/CandidateNavbar.jsx'
 
 const CareersHome = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-cyan-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <CandidateNavbar />
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-cyan-600/20"></div>

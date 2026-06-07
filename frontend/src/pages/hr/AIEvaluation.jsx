@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { aiRecruitmentApi } from '../../services/api.js'
 import { useAppContext } from '../../contexts/AppContext.jsx'
 
@@ -18,12 +18,8 @@ const AIEvaluation = () => {
       const res = await aiRecruitmentApi.getCandidateEvaluations()
       setEvaluations(res.data)
     } catch (error) {
-      setEvaluations([
-        { id: 1, candidate_id: 1, candidate_name: 'John Doe', position: 'Senior React Developer', recommendation: 'Hire', summary: 'Strong technical skills with excellent communication.', strengths: 'React (5 years), Redux, TypeScript', weaknesses: 'Limited GraphQL experience', skill_gaps: 'GraphQL, Next.js', overall_score: 88 },
-        { id: 2, candidate_id: 2, candidate_name: 'Jane Smith', position: 'Python Backend Engineer', recommendation: 'Consider', summary: 'Good fundamentals but lacks cloud experience.', strengths: 'Python, Django, SQL', weaknesses: 'Limited cloud, No Docker', skill_gaps: 'AWS, Docker', overall_score: 72 },
-        { id: 3, candidate_id: 3, candidate_name: 'Mike Johnson', position: 'DevOps Engineer', recommendation: 'Strong Hire', summary: 'Excellent DevOps background.', strengths: 'AWS, Kubernetes, Terraform', weaknesses: 'Limited monitoring', skill_gaps: 'Prometheus, Grafana', overall_score: 94 },
-      ])
-      addToast('Using demo evaluation data', 'info')
+      addToast('Failed to fetch candidate evaluations', 'error')
+      setEvaluations([])
     } finally {
       setLoading(false)
     }

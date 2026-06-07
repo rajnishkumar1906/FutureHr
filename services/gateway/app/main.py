@@ -8,7 +8,7 @@ app = FastAPI(title="FutureHR API Gateway", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,14 +28,14 @@ HOP_BY_HOP_HEADERS = {
 }
 
 
-def get_service_url(path: str):
+def get_service_url_and_remaining_path(path: str):
     if path.startswith("/api/auth"):
-        return settings.AUTH_SERVICE_URL
+        return settings.AUTH_SERVICE_URL, path
     if path.startswith("/api/hrms"):
-        return settings.HRMS_SERVICE_URL
+        return settings.HRMS_SERVICE_URL, path
     if path.startswith("/api/ai-recruitment"):
-        return settings.AI_RECRUITMENT_SERVICE_URL
-    return None
+        return settings.AI_RECRUITMENT_SERVICE_URL, path
+    return None, None
 
 
 def filter_response_headers(headers):
@@ -47,7 +47,7 @@ def filter_response_headers(headers):
 
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "FutureHR API Gateway"}
 
 
@@ -85,7 +85,7 @@ async def health_check():
 )
 async def proxy(request: Request, path: str):
     full_path = f"/api/{path}"
-    service_url = get_service_url(full_path)
+    service_url = get_service_url_and_remaining_path(full_path)[0]
 
     if not service_url:
         return JSONResponse(status_code=404, content={"error": "Service not found"})

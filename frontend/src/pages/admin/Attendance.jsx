@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { hrmsApi } from '../../services/api.js'
 import { useAppContext } from '../../contexts/AppContext.jsx'
 
@@ -19,68 +19,7 @@ const Attendance = () => {
       const res = await hrmsApi.getAttendance({ month: selectedMonth + 1, year: selectedYear })
       setAttendance(res.data)
     } catch (error) {
-      const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate()
-      const dummyData = []
-      const employeeNames = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Wilson', 'David Brown']
-      
-      for (let day = 1; day <= Math.min(daysInMonth, 15); day++) {
-        employeeNames.forEach((name, idx) => {
-          const date = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-          const dayOfWeek = new Date(selectedYear, selectedMonth, day).getDay()
-          
-          if (dayOfWeek === 0 || dayOfWeek === 6) {
-            dummyData.push({
-              id: dummyData.length + 1,
-              employee_id: 101 + idx,
-              employee_name: name,
-              date: date,
-              check_in: '-',
-              check_out: '-',
-              hours_worked: 0,
-              status: 'Weekend'
-            })
-          } else {
-            const random = Math.random()
-            if (random > 0.9) {
-              dummyData.push({
-                id: dummyData.length + 1,
-                employee_id: 101 + idx,
-                employee_name: name,
-                date: date,
-                check_in: '-',
-                check_out: '-',
-                hours_worked: 0,
-                status: 'Absent'
-              })
-            } else if (random > 0.8) {
-              dummyData.push({
-                id: dummyData.length + 1,
-                employee_id: 101 + idx,
-                employee_name: name,
-                date: date,
-                check_in: '09:30',
-                check_out: '18:00',
-                hours_worked: 7.5,
-                status: 'Late'
-              })
-            } else {
-              dummyData.push({
-                id: dummyData.length + 1,
-                employee_id: 101 + idx,
-                employee_name: name,
-                date: date,
-                check_in: '09:00',
-                check_out: '18:00',
-                hours_worked: 8,
-                status: 'Present'
-              })
-            }
-          }
-        })
-      }
-      
-      setAttendance(dummyData)
-      addToast('Using demo attendance data', 'info')
+      console.error('Failed to fetch attendance:', error)
     } finally {
       setLoading(false)
     }
@@ -107,7 +46,8 @@ const Attendance = () => {
   }
 
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-  const years = [2023, 2024, 2025]
+  const currentY = new Date().getFullYear()
+  const years = [currentY - 2, currentY - 1, currentY, currentY + 1]
 
   const calculateStats = () => {
     const present = attendance.filter(a => a.status === 'Present').length
@@ -273,8 +213,10 @@ const Attendance = () => {
           </table>
         </div>
         {attendance.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-gray-500 dark:text-gray-400">No attendance records found for this month</p>
+          <div className="py-20 flex flex-col items-center text-center">
+            <div className="text-6xl mb-4">📅</div>
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">No attendance records</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No records found for this month. Attendance marked by employees will appear here.</p>
           </div>
         )}
       </div>

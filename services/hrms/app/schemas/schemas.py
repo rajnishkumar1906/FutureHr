@@ -5,12 +5,14 @@ from typing import Optional, List
 class DepartmentBase(BaseModel):
     name: str
     description: Optional[str] = None
+    manager_id: Optional[int] = None
 
 class DepartmentCreate(DepartmentBase):
     pass
 
 class DepartmentResponse(DepartmentBase):
     id: int
+    manager_id: Optional[int] = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -32,16 +34,54 @@ class DesignationResponse(DesignationBase):
 class EmployeeBase(BaseModel):
     user_id: int
     email: str
-    department_id: int
-    designation_id: int
-    date_of_joining: date
-    phone: str
+    first_name: Optional[str] = ''
+    last_name: Optional[str] = ''
+    department_id: Optional[int] = None
+    designation_id: Optional[int] = None
+    manager_id: Optional[int] = None
+    date_of_joining: Optional[date] = None
+    phone: Optional[str] = None
     gender: Optional[str] = None
 
 class EmployeeCreate(EmployeeBase):
     pass
 
 class EmployeeResponse(EmployeeBase):
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class TeamMemberResponse(BaseModel):
+    user_id: int
+    email: str
+    first_name: Optional[str] = ''
+    last_name: Optional[str] = ''
+    department_id: Optional[int] = None
+    designation_id: Optional[int] = None
+    manager_id: Optional[int] = None
+    date_of_joining: Optional[date] = None
+    phone: Optional[str] = None
+    gender: Optional[str] = None
+    attendance_today: Optional[str] = None
+    performance_avg: Optional[float] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class LeaveRequestBase(BaseModel):
+    user_id: int
+    leave_type: str
+    start_date: date
+    end_date: date
+    reason: Optional[str] = None
+    manager_id: Optional[int] = None
+
+class LeaveRequestCreate(LeaveRequestBase):
+    pass
+
+class LeaveRequestResponse(LeaveRequestBase):
+    id: int
+    status: str
     created_at: datetime
     class Config:
         from_attributes = True

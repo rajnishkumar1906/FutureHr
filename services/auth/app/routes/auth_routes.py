@@ -19,14 +19,14 @@ async def register(user: UserCreate):
         await conn.close()
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Check if user is trying to register as Admin and Admin already exists
-    if user.role == "Admin":
-        existing_admin = await conn.fetchrow("SELECT * FROM users WHERE role = 'Admin'")
+    # Check if user is trying to register as Management Admin and one already exists
+    if user.role == "Management Admin":
+        existing_admin = await conn.fetchrow("SELECT * FROM users WHERE role = 'Management Admin'")
         if existing_admin:
             await conn.close()
-            raise HTTPException(status_code=400, detail="You can't be Admin, an Admin already exists!")
+            raise HTTPException(status_code=400, detail="You can't be Management Admin, one already exists!")
     
-    hashed_password = get_password_hash(user.password)
+    hashed_password = await get_password_hash(user.password)
     
     new_user = await conn.fetchrow(
         """
@@ -47,7 +47,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     
     user = await conn.fetchrow("SELECT * FROM users WHERE email = $1", form_data.username)
     
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+    if not user or not await verify_password(form_data.password, user["hashed_password"]):
         await conn.close()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -82,3 +82,61 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
 async def logout(response: Response):
     response.delete_cookie(key="access_token")
     return {"message": "Successfully logged out"}
+
+
+@router.get("/users")
+async def get_users(role: str = None):
+    """Return all users, optionally filtered by role. Used by admin for manager selection."""
+    conn = await get_db_connection()
+    try:
+        if role:
+            users = await conn.fetch(
+                "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users WHERE role = $1",
+                role
+            )
+        else:
+            users = await conn.fetch(
+                "SELECT id, email, first_name, last_name, role, is_active, created_at FROM users"
+            )
+        return [dict(u) for u in users]
+    finally:
+        await conn.close()
+
+
+@router.post("/internal/promote-employee")
+async def promote_to_employee(data: dict):
+    """Called by AI recruitment service when a candidate is hired."""
+    email = data.get("email")
+    first_name = data.get("first_name", "")
+    last_name = data.get("last_name", "")
+    password = data.get("password", "")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    conn = await get_db_connection()
+    try:
+        existing = await conn.fetchrow("SELECT * FROM users WHERE email = $1", email)
+        if existing:
+            await conn.execute(
+                "UPDATE users SET role = 'Employee', is_active = true WHERE email = $1",
+                email
+            )
+            row = await conn.fetchrow("SELECT id FROM users WHERE email = $1", email)
+            return {"message": "User promoted to Employee", "email": email, "user_id": row["id"]}
+        else:
+            if not password:
+                import secrets
+                password = secrets.token_urlsafe(10)
+            hashed = await get_password_hash(password)
+            row = await conn.fetchrow(
+                """
+                INSERT INTO users (email, hashed_password, first_name, last_name, role)
+                VALUES ($1, $2, $3, $4, 'Employee')
+                RETURNING id
+                """,
+                email, hashed, first_name, last_name
+            )
+            return {"message": "Employee account created", "email": email, "user_id": row["id"], "temp_password": password}
+    finally:
+        await conn.close()

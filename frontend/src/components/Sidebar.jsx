@@ -24,16 +24,53 @@ const Sidebar = () => {
   const location = useLocation()
 
   const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: DashboardIcon, roles: ['Management Admin', 'HR Recruiter', 'Senior Manager', 'Employee'] },
-    { name: 'Employees', path: '/admin/employees', icon: EmployeesIcon, roles: ['Management Admin'] },
+    { 
+      name: 'Dashboard', 
+      path: '/dashboard', 
+      icon: DashboardIcon, 
+      roles: ['Management Admin', 'HR Recruiter', 'Senior Manager', 'Employee'],
+      getPath: (role) => {
+        switch(role) {
+          case 'Management Admin': return '/admin/dashboard';
+          case 'HR Recruiter': return '/hr/dashboard';
+          case 'Senior Manager': return '/manager/dashboard';
+          case 'Employee': return '/employee/dashboard';
+          default: return '/dashboard';
+        }
+      }
+    },
+    { 
+      name: 'Employees', 
+      path: '/admin/employees', 
+      icon: EmployeesIcon, 
+      roles: ['Management Admin', 'HR Recruiter'],
+      getPath: (role) => role === 'Management Admin' ? '/admin/employees' : '/hr/employees'
+    },
     { name: 'Departments', path: '/admin/departments', icon: BuildingIcon, roles: ['Management Admin'] },
-    { name: 'Attendance', path: '/admin/attendance', icon: AttendanceIcon, roles: ['Management Admin'] },
-    { name: 'Payroll', path: '/admin/payroll', icon: PayrollIcon, roles: ['Management Admin'] },
-    { name: 'Performance', path: '/admin/performance', icon: PerformanceIcon, roles: ['Management Admin'] },
+    { 
+      name: 'Attendance', 
+      path: '/admin/attendance', 
+      icon: AttendanceIcon, 
+      roles: ['Management Admin', 'HR Recruiter'],
+      getPath: (role) => role === 'Management Admin' ? '/admin/attendance' : '/hr/attendance'
+    },
+    { 
+      name: 'Payroll', 
+      path: '/hr/payroll', 
+      icon: PayrollIcon, 
+      roles: ['Management Admin', 'HR Recruiter'],
+      getPath: (role) => role === 'Management Admin' ? '/admin/payroll' : '/hr/payroll' 
+    },
+    { 
+      name: 'Performance', 
+      path: '/admin/performance', 
+      icon: PerformanceIcon, 
+      roles: ['Management Admin', 'HR Recruiter'],
+      getPath: (role) => role === 'Management Admin' ? '/admin/performance' : '/hr/performance'
+    },
     { name: 'Candidates', path: '/hr/candidates', icon: CandidatesIcon, roles: ['HR Recruiter'] },
     { name: 'Jobs', path: '/hr/jobs', icon: JobsIcon, roles: ['HR Recruiter'] },
     { name: 'Resume Screening', path: '/hr/resume-screening', icon: ResumeScreeningIcon, roles: ['HR Recruiter'] },
-    { name: 'AI Evaluation', path: '/hr/ai-evaluation', icon: AIEvaluationIcon, roles: ['HR Recruiter'] },
     { name: 'Voice Screening', path: '/hr/voice-screening', icon: VoiceScreeningIcon, roles: ['HR Recruiter'] },
     { name: 'My Team', path: '/manager/team', icon: EmployeesIcon, roles: ['Senior Manager'] },
     { name: 'Leave Requests', path: '/manager/leaves', icon: LeaveIcon, roles: ['Senior Manager'] },
@@ -42,6 +79,7 @@ const Sidebar = () => {
     { name: 'My Payroll', path: '/employee/payroll', icon: PayrollIcon, roles: ['Employee'] },
     { name: 'My Goals', path: '/employee/goals', icon: GoalsIcon, roles: ['Employee'] },
     { name: 'My Leaves', path: '/employee/leave', icon: LeaveIcon, roles: ['Employee'] },
+    { name: 'Send Email', path: '/admin/settings', icon: GoalsIcon, roles: ['Management Admin'] },
   ]
 
   const links = menuItems.filter(item => item.roles.includes(user?.role))
@@ -72,12 +110,13 @@ const Sidebar = () => {
         <nav className="flex-1 overflow-y-auto p-4 pt-6">
           <ul className="space-y-1.5">
             {links.map((link) => {
-              const active = isActive(link.path)
+              const actualPath = link.getPath ? link.getPath(user?.role) : link.path;
+              const active = isActive(actualPath)
               const Icon = link.icon
               return (
-                <li key={link.path}>
+                <li key={link.name}>
                   <Link
-                    to={link.path}
+                    to={actualPath}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                       active
                         ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg'

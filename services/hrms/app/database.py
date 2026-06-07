@@ -34,11 +34,39 @@ async def init_db():
         CREATE TABLE IF NOT EXISTS employees (
             user_id INTEGER PRIMARY KEY,
             email VARCHAR UNIQUE NOT NULL,
+            first_name VARCHAR DEFAULT '',
+            last_name VARCHAR DEFAULT '',
             department_id INTEGER,
             designation_id INTEGER,
+            manager_id INTEGER,
             date_of_joining DATE,
             phone VARCHAR,
             gender VARCHAR,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    # Add new columns to existing tables if not present
+    for col, definition in [
+        ("first_name", "VARCHAR DEFAULT ''"),
+        ("last_name",  "VARCHAR DEFAULT ''"),
+        ("manager_id", "INTEGER"),
+    ]:
+        try:
+            await conn.execute(f"ALTER TABLE employees ADD COLUMN IF NOT EXISTS {col} {definition}")
+        except Exception:
+            pass
+
+    # Leave requests table
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS leave_requests (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            leave_type VARCHAR NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            reason TEXT,
+            status VARCHAR DEFAULT 'Pending',
+            manager_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -87,4 +115,10 @@ async def init_db():
         )
     """)
     
+    # Add manager_id column to departments if not present
+    try:
+        await conn.execute("ALTER TABLE departments ADD COLUMN IF NOT EXISTS manager_id INTEGER")
+    except Exception:
+        pass
+
     await conn.close()

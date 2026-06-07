@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+httpx
 asyncpg
 pydantic
 pydantic-settings
@@ -7,4 +8,9 @@ python-multipart
 python-dotenv
 google-genai
 pydantic[email]
+PyPDF2
+sentence-transformers
+scikit-learn
+numpy
+python-multipart
 google-genai

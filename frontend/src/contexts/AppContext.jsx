@@ -96,16 +96,26 @@ export const AppProvider = ({ children }) => {
     }
   }
 
-  const logout = async () => {
+  const logout = async (role, { silent = false, redirect = true } = {}) => {
+    const effectiveRole = role || user?.role
     try {
       await authApi.logout()
-    } catch (error) {
-      // Ignore logout API errors
+    } catch {
+      // ignore
     }
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem(USER_STORAGE_KEY)
-    addToast('Successfully logged out!', 'info')
+    if (!silent) addToast('Successfully logged out!', 'info')
+    if (redirect) {
+      if (effectiveRole === 'Management Admin') {
+        window.location.href = '/admin'
+      } else if (effectiveRole === 'Candidate') {
+        window.location.href = '/careers/login'
+      } else {
+        window.location.href = '/login'
+      }
+    }
   }
 
   const toggleDarkMode = () => {

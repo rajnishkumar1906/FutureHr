@@ -1,4 +1,4 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 
 // API Base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -7,21 +7,12 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   withCredentials: true,
 })
 
-// Request interceptor
+// Request interceptor (no need to add token, since it's in HttpOnly cookie)
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
+  (config) => config,
   (error) => Promise.reject(error)
 )
 
@@ -30,9 +21,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token')
+      const stored = localStorage.getItem('user')
+      let role = null
+      try { role = JSON.parse(stored)?.role } catch { /* ignore */ }
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      if (role === 'Candidate') {
+        window.location.href = '/careers/login'
+      } else if (role === 'Management Admin') {
+        window.location.href = '/admin'
+      } else {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -40,113 +39,123 @@ apiClient.interceptors.response.use(
 
 // Auth API
 export const authApi = {
-  login: (email, password) => apiClient.post('/auth/login', { email, password }),
-  register: (userData) => apiClient.post('/auth/register', userData),
-  logout: () => apiClient.post('/auth/logout'),
-  getCurrentUser: () => apiClient.get('/auth/me'),
-  refreshToken: () => apiClient.post('/auth/refresh'),
-  forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
-  resetPassword: (token, newPassword) => apiClient.post('/auth/reset-password', { token, newPassword }),
-  changePassword: (oldPassword, newPassword) => apiClient.post('/auth/change-password', { oldPassword, newPassword }),
-  updateProfile: (userData) => apiClient.put('/auth/profile', userData),
+  login: (email, password) => {
+    // OAuth2PasswordRequestForm expects username and password as form data
+    const formData = new FormData()
+    formData.append('username', email)
+    formData.append('password', password)
+    return apiClient.post('/api/auth/login', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  register: (userData) => apiClient.post('/api/auth/register', userData),
+  logout: () => apiClient.post('/api/auth/logout'),
+  getUsers: (role) => apiClient.get('/api/auth/users', { params: role ? { role } : {} }),
+  getCurrentUser: () => apiClient.get('/api/auth/me'),
+  refreshToken: () => apiClient.post('/api/auth/refresh'),
+  forgotPassword: (email) => apiClient.post('/api/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => apiClient.post('/api/auth/reset-password', { token, newPassword }),
+  changePassword: (oldPassword, newPassword) => apiClient.post('/api/auth/change-password', { oldPassword, newPassword }),
+  updateProfile: (userData) => apiClient.put('/api/auth/profile', userData),
 }
 
 // HRMS API
 export const hrmsApi = {
-  getEmployees: () => apiClient.get('/hrms/employees'),
-  getEmployee: (id) => apiClient.get(`/hrms/employees/${id}`),
-  createEmployee: (data) => apiClient.post('/hrms/employees', data),
-  updateEmployee: (id, data) => apiClient.put(`/hrms/employees/${id}`, data),
-  deleteEmployee: (id) => apiClient.delete(`/hrms/employees/${id}`),
-  getDepartments: () => apiClient.get('/hrms/departments'),
-  getDepartment: (id) => apiClient.get(`/hrms/departments/${id}`),
-  createDepartment: (data) => apiClient.post('/hrms/departments', data),
-  updateDepartment: (id, data) => apiClient.put(`/hrms/departments/${id}`, data),
-  deleteDepartment: (id) => apiClient.delete(`/hrms/departments/${id}`),
-  getAttendance: (params) => apiClient.get('/hrms/attendance', { params }),
-  getAttendanceByEmployee: (employeeId, month, year) => apiClient.get(`/hrms/attendance/employee/${employeeId}`, { params: { month, year } }),
-  markAttendance: (data) => apiClient.post('/hrms/attendance', data),
-  updateAttendance: (id, data) => apiClient.put(`/hrms/attendance/${id}`, data),
-  getAttendanceSummary: (employeeId, month, year) => apiClient.get(`/hrms/attendance/summary/${employeeId}`, { params: { month, year } }),
-  getPayroll: (params) => apiClient.get('/hrms/payroll', { params }),
-  getPayrollByEmployee: (employeeId) => apiClient.get(`/hrms/payroll/employee/${employeeId}`),
-  generatePayroll: (data) => apiClient.post('/hrms/payroll/generate', data),
-  updatePayroll: (id, data) => apiClient.put(`/hrms/payroll/${id}`, data),
-  downloadPayslip: (id) => apiClient.get(`/hrms/payroll/${id}/download`, { responseType: 'blob' }),
-  getPerformanceGoals: (params) => apiClient.get('/hrms/performance/goals', { params }),
-  getPerformanceGoal: (id) => apiClient.get(`/hrms/performance/goals/${id}`),
-  createPerformanceGoal: (data) => apiClient.post('/hrms/performance/goals', data),
-  updatePerformanceGoal: (id, data) => apiClient.put(`/hrms/performance/goals/${id}`, data),
-  deletePerformanceGoal: (id) => apiClient.delete(`/hrms/performance/goals/${id}`),
-  updateGoalProgress: (id, progress) => apiClient.patch(`/hrms/performance/goals/${id}/progress`, { progress }),
-  getLeaveRequests: (params) => apiClient.get('/hrms/leaves', { params }),
-  createLeaveRequest: (data) => apiClient.post('/hrms/leaves', data),
-  updateLeaveRequest: (id, data) => apiClient.put(`/hrms/leaves/${id}`, data),
-  approveLeaveRequest: (id) => apiClient.patch(`/hrms/leaves/${id}/approve`),
-  rejectLeaveRequest: (id) => apiClient.patch(`/hrms/leaves/${id}/reject`),
-  getLeaveBalance: (employeeId) => apiClient.get(`/hrms/leaves/balance/${employeeId}`),
-  getTeam: () => apiClient.get('/hrms/team'),
+  getEmployees: () => apiClient.get('/api/hrms/employees'),
+  getEmployee: (id) => apiClient.get(`/api/hrms/employees/${id}`),
+  createEmployee: (data) => apiClient.post('/api/hrms/employees', data),
+  updateEmployee: (id, data) => apiClient.put(`/api/hrms/employees/${id}`, data),
+  deleteEmployee: (id) => apiClient.delete(`/api/hrms/employees/${id}`),
+  getDepartments: () => apiClient.get('/api/hrms/departments'),
+  getDepartment: (id) => apiClient.get(`/api/hrms/departments/${id}`),
+  createDepartment: (data) => apiClient.post('/api/hrms/departments', data),
+  updateDepartment: (id, data) => apiClient.put(`/api/hrms/departments/${id}`, data),
+  deleteDepartment: (id) => apiClient.delete(`/api/hrms/departments/${id}`),
+  getAttendance: (params) => apiClient.get('/api/hrms/attendance', { params }),
+  getAttendanceByEmployee: (employeeId, month, year) => apiClient.get(`/api/hrms/attendance/employee/${employeeId}`, { params: { month, year } }),
+  markAttendance: (data) => apiClient.post('/api/hrms/attendance', data),
+  updateAttendance: (id, data) => apiClient.put(`/api/hrms/attendance/${id}`, data),
+  getAttendanceSummary: (employeeId, month, year) => apiClient.get(`/api/hrms/attendance/summary/${employeeId}`, { params: { month, year } }),
+  getPayroll: (params) => apiClient.get('/api/hrms/payroll', { params }),
+  getPayrollByEmployee: (employeeId) => apiClient.get(`/api/hrms/payroll/employee/${employeeId}`),
+  generatePayroll: (data) => apiClient.post('/api/hrms/payroll/generate', data),
+  updatePayroll: (id, data) => apiClient.put(`/api/hrms/payroll/${id}`, data),
+  downloadPayslip: (id) => apiClient.get(`/api/hrms/payroll/${id}/download`, { responseType: 'blob' }),
+  getPerformanceGoals: (params) => apiClient.get('/api/hrms/performance-goals', { params }),
+  getPerformanceGoal: (id) => apiClient.get(`/api/hrms/performance-goals/${id}`),
+  createPerformanceGoal: (data) => apiClient.post('/api/hrms/performance-goals', data),
+  updatePerformanceGoal: (id, data) => apiClient.put(`/api/hrms/performance-goals/${id}`, data),
+  deletePerformanceGoal: (id) => apiClient.delete(`/api/hrms/performance-goals/${id}`),
+  updateGoalProgress: (id, progress) => apiClient.patch(`/api/hrms/performance-goals/${id}/progress`, { progress }),
+  getLeaveRequests: (params) => apiClient.get('/api/hrms/leaves', { params }),
+  createLeaveRequest: (data) => apiClient.post('/api/hrms/leaves', data),
+  updateLeaveRequest: (id, data) => apiClient.put(`/api/hrms/leaves/${id}`, data),
+  approveLeaveRequest: (id) => apiClient.patch(`/api/hrms/leaves/${id}/approve`),
+  rejectLeaveRequest: (id) => apiClient.patch(`/api/hrms/leaves/${id}/reject`),
+  getLeaveBalance: (employeeId) => apiClient.get(`/api/hrms/leaves/balance/${employeeId}`),
+  getTeam: (managerId) => apiClient.get('/api/hrms/team', { params: managerId ? { manager_id: managerId } : {} }),
+  assignManager: (employeeUserId, managerId) => apiClient.patch(`/api/hrms/employees/${employeeUserId}/manager`, { manager_id: managerId }),
+  assignDepartmentManager: (deptId, managerId) => apiClient.patch(`/api/hrms/departments/${deptId}/manager`, { manager_id: managerId }),
 }
 
 // AI Recruitment API
 export const aiRecruitmentApi = {
-  getJobs: () => apiClient.get('/recruitment/jobs'),
-  getJob: (id) => apiClient.get(`/recruitment/jobs/${id}`),
-  createJob: (data) => apiClient.post('/recruitment/jobs', data),
-  updateJob: (id, data) => apiClient.put(`/recruitment/jobs/${id}`, data),
-  deleteJob: (id) => apiClient.delete(`/recruitment/jobs/${id}`),
-  getCandidates: (params) => apiClient.get('/recruitment/candidates', { params }),
-  getCandidate: (id) => apiClient.get(`/recruitment/candidates/${id}`),
-  createCandidate: (data) => apiClient.post('/recruitment/candidates', data),
-  updateCandidate: (id, data) => apiClient.put(`/recruitment/candidates/${id}`, data),
-  deleteCandidate: (id) => apiClient.delete(`/recruitment/candidates/${id}`),
-  updateCandidateStatus: (id, status) => apiClient.patch(`/recruitment/candidates/${id}/status`, { status }),
-  uploadResume: (candidateId, file) => {
-    const formData = new FormData()
-    formData.append('resume', file)
-    formData.append('candidate_id', candidateId)
-    return apiClient.post('/recruitment/resume/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-  },
-  getResumeScreenings: () => apiClient.get('/recruitment/resume-screenings'),
-  getResumeScreening: (id) => apiClient.get(`/recruitment/resume-screenings/${id}`),
-  screenResume: (candidateId, jobId) => apiClient.post('/recruitment/resume-screen', { candidate_id: candidateId, job_id: jobId }),
-  bulkScreenResumes: (candidateIds, jobId) => apiClient.post('/recruitment/resume-screen/bulk', { candidate_ids: candidateIds, job_id: jobId }),
-  getCandidateEvaluations: () => apiClient.get('/recruitment/evaluations'),
-  getCandidateEvaluation: (id) => apiClient.get(`/recruitment/evaluations/${id}`),
-  evaluateCandidate: (candidateId) => apiClient.post('/recruitment/evaluate', { candidate_id: candidateId }),
-  getVoiceScreenings: () => apiClient.get('/recruitment/voice-screenings'),
-  getVoiceScreening: (id) => apiClient.get(`/recruitment/voice-screenings/${id}`),
-  submitVoiceRecording: (candidateId, audioBlob) => {
-    const formData = new FormData()
-    formData.append('audio', audioBlob, 'recording.wav')
-    formData.append('candidate_id', candidateId)
-    return apiClient.post('/recruitment/voice-screen', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-  },
-  getVoiceQuestions: (jobId) => apiClient.get(`/recruitment/voice-questions/${jobId}`),
-  submitApplication: (jobId, formData) => apiClient.post(`/recruitment/jobs/${jobId}/apply`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  getApplicationStatus: (applicationId) => apiClient.get(`/recruitment/applications/${applicationId}/status`),
-  getMyApplications: () => apiClient.get('/recruitment/my-applications'),
-}
+  // ==================== JOBS ====================
+  getJobs: () => apiClient.get('/api/ai-recruitment/jobs'),
+  getJob: (id) => apiClient.get(`/api/ai-recruitment/jobs/${id}`),
+  createJob: (data) => apiClient.post('/api/ai-recruitment/jobs', data),
+  updateJob: (id, data) => apiClient.put(`/api/ai-recruitment/jobs/${id}`, data),
+  deleteJob: (id) => apiClient.delete(`/api/ai-recruitment/jobs/${id}`),
+  
+  // ==================== VOICE QUESTIONS ====================
+  getVoiceQuestions: (jobId) => apiClient.get(`/api/ai-recruitment/jobs/${jobId}/voice-questions`),
+  
+  // ==================== CANDIDATES ====================
+  getCandidates: (params) => apiClient.get('/api/ai-recruitment/candidates', { params }),
+  getCandidate: (id) => apiClient.get(`/api/ai-recruitment/candidates/${id}`),
+  createCandidate: (data) => apiClient.post('/api/ai-recruitment/candidates', data),
+  updateCandidate: (id, data) => apiClient.put(`/api/ai-recruitment/candidates/${id}`, data),
+  deleteCandidate: (id) => apiClient.delete(`/api/ai-recruitment/candidates/${id}`),
+  updateCandidateStatus: (id, status) => apiClient.patch(`/api/ai-recruitment/candidates/${id}/status`, { status }),
+  
+  // ==================== APPLICATIONS ====================
+  submitApplication: (formData) => apiClient.post('/api/ai-recruitment/applications', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getApplications: (jobId, email) => apiClient.get('/api/ai-recruitment/applications', { params: jobId ? { job_id: jobId } : email ? { email } : {} }),
+  getApplication: (applicationId) => apiClient.get(`/api/ai-recruitment/applications/${applicationId}`),
+  deleteApplication: (applicationId) => apiClient.delete(`/api/ai-recruitment/applications/${applicationId}`),
+  updateApplicationStatus: (applicationId, status) => apiClient.put(`/api/ai-recruitment/applications/${applicationId}/status`, { status }),
+  
+  // ==================== RESUME SCREENINGS ====================
+  getResumeScreeningForApplication: (applicationId) => apiClient.get(`/api/ai-recruitment/applications/${applicationId}/resume-screening`),
+  getResumeScreenings: () => apiClient.get('/api/ai-recruitment/resume-screenings'),
+  
+  // ==================== VOICE ANSWERS/SCREENINGS ====================
+  submitVoiceAnswers: (applicationId, answers) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/voice-answers`, { answers }),
+  getVoiceScreeningForApplication: (applicationId) => apiClient.get(`/api/ai-recruitment/applications/${applicationId}/voice-screening`),
+  getVoiceScreenings: () => apiClient.get('/api/ai-recruitment/voice-screenings'),
+  
+  // ==================== CANDIDATE EVALUATIONS ====================
+  evaluateApplication: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/evaluate`),
+  getEvaluationForApplication: (applicationId) => apiClient.get(`/api/ai-recruitment/applications/${applicationId}/evaluation`),
+  getCandidateEvaluations: () => apiClient.get('/api/ai-recruitment/candidate-evaluations'),
+  
+  // ==================== HIRE CANDIDATE ====================
+  hireCandidate: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/hire`),
 
-// Mock APIs for development
-export const mockAuthApi = {
-  login: (email, password) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === 'admin@futurehr.com' && password === 'password') {
-          resolve({ data: { user: { id: 1, email: 'admin@futurehr.com', first_name: 'Admin', last_name: 'User', role: 'Management Admin' }, token: 'mock-token' } })
-        } else if (email === 'hr@futurehr.com' && password === 'password') {
-          resolve({ data: { user: { id: 2, email: 'hr@futurehr.com', first_name: 'HR', last_name: 'User', role: 'HR Recruiter' }, token: 'mock-token' } })
-        } else if (email === 'manager@futurehr.com' && password === 'password') {
-          resolve({ data: { user: { id: 3, email: 'manager@futurehr.com', first_name: 'Manager', last_name: 'User', role: 'Senior Manager' }, token: 'mock-token' } })
-        } else if (email === 'employee@futurehr.com' && password === 'password') {
-          resolve({ data: { user: { id: 4, email: 'employee@futurehr.com', first_name: 'Employee', last_name: 'User', role: 'Employee' }, token: 'mock-token' } })
-        } else {
-          reject({ response: { data: { detail: 'Invalid credentials' } } })
-        }
-      }, 500)
-    })
-  },
+  // ==================== VOICE SCREENING INVITE ====================
+  sendVoiceInvite: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/send-voice-invite`),
+  
+  // ==================== VALIDATE VOICE CODE ====================
+  validateVoiceCode: (code) => apiClient.get(`/api/ai-recruitment/voice-screening/validate/${code}`),
+
+  // ==================== CHAT ====================
+  chatWithAI: (message, candidateIds) => apiClient.post('/api/ai-recruitment/chat', { message, candidate_ids: candidateIds }),
+
+  // ==================== SYSTEM SETTINGS ====================
+  getSettings: () => apiClient.get('/api/ai-recruitment/settings'),
+  updateSettings: (data) => apiClient.put('/api/ai-recruitment/settings', data),
+  testEmail: (to) => apiClient.post('/api/ai-recruitment/settings/test-email', { to }),
+  composeEmail: (formData) => apiClient.post('/api/ai-recruitment/compose-email', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 }
 
 export default apiClient

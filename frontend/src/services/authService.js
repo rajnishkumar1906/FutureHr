@@ -1,51 +1,4 @@
-﻿import apiClient from './api.js'
-
-export const authApi = {
-  // Login user
-  login: (email, password) => {
-    return apiClient.post('/auth/login', { email, password })
-  },
-
-  // Register new user
-  register: (userData) => {
-    return apiClient.post('/auth/register', userData)
-  },
-
-  // Logout user
-  logout: () => {
-    return apiClient.post('/auth/logout')
-  },
-
-  // Get current user
-  getCurrentUser: () => {
-    return apiClient.get('/auth/me')
-  },
-
-  // Refresh token
-  refreshToken: () => {
-    return apiClient.post('/auth/refresh')
-  },
-
-  // Forgot password
-  forgotPassword: (email) => {
-    return apiClient.post('/auth/forgot-password', { email })
-  },
-
-  // Reset password
-  resetPassword: (token, newPassword) => {
-    return apiClient.post('/auth/reset-password', { token, newPassword })
-  },
-
-  // Change password
-  changePassword: (oldPassword, newPassword) => {
-    return apiClient.post('/auth/change-password', { oldPassword, newPassword })
-  },
-
-  // Update profile
-  updateProfile: (userData) => {
-    return apiClient.put('/auth/profile', userData)
-  },
-}
+import { authApi } from './api.js'
 
 // Mock authentication for development (if backend not ready)
 export const mockAuthApi = {
@@ -62,7 +15,46 @@ export const mockAuthApi = {
                 last_name: 'User',
                 role: 'Management Admin',
               },
-              token: 'mock-token-123',
+              access_token: 'mock-token-123',
+            },
+          })
+        } else if (email === 'hr@futurehr.com' && password === 'password') {
+          resolve({
+            data: {
+              user: {
+                id: 2,
+                email: 'hr@futurehr.com',
+                first_name: 'HR',
+                last_name: 'User',
+                role: 'HR Recruiter',
+              },
+              access_token: 'mock-token-123',
+            },
+          })
+        } else if (email === 'manager@futurehr.com' && password === 'password') {
+          resolve({
+            data: {
+              user: {
+                id: 3,
+                email: 'manager@futurehr.com',
+                first_name: 'Manager',
+                last_name: 'User',
+                role: 'Senior Manager',
+              },
+              access_token: 'mock-token-123',
+            },
+          })
+        } else if (email === 'employee@futurehr.com' && password === 'password') {
+          resolve({
+            data: {
+              user: {
+                id: 4,
+                email: 'employee@futurehr.com',
+                first_name: 'Employee',
+                last_name: 'User',
+                role: 'Employee',
+              },
+              access_token: 'mock-token-123',
             },
           })
         } else {
