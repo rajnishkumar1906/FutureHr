@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppContext } from '../../contexts/AppContext.jsx'
+import { setAuthToken } from '../../services/api.js'
 import { aiRecruitmentApi } from '../../services/api.js'
 import CandidateNavbar from '../../components/CandidateNavbar.jsx'
 
@@ -275,12 +276,17 @@ const ApplicationStatus = () => {
                               <p className="text-green-700 dark:text-green-300 text-sm mt-1">
                                 Your account has been upgraded to an Employee. You'll receive login credentials by email.
                               </p>
-                              <Link
-                                to="/login"
+                              <button
+                                onClick={() => {
+                                  // Clear candidate session so they can log in fresh as Employee
+                                  localStorage.removeItem('futurehr-user')
+                                  setAuthToken(null)
+                                  window.location.href = '/login'
+                                }}
                                 className="inline-block mt-3 px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors"
                               >
                                 Login as Employee →
-                              </Link>
+                              </button>
                             </div>
                           </div>
                         </div>
