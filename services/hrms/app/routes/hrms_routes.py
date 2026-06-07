@@ -360,6 +360,37 @@ async def generate_payroll(data: dict):
     allowances = data.get("allowances", 0.0)
     deductions = data.get("deductions", 0.0)
     
+    # Validate required fields
+    if not month or not year:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Month and year are required"
+        )
+    
+    # Validate month range
+    if month < 1 or month > 12:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Month must be between 1 and 12"
+        )
+    
+    # Validate salary amounts
+    if basic_salary < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Basic salary cannot be negative"
+        )
+    if allowances < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Allowances cannot be negative"
+        )
+    if deductions < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Deductions cannot be negative"
+        )
+    
     conn = await get_db_connection()
     try:
         # Get employees to generate payroll for
@@ -367,6 +398,9 @@ async def generate_payroll(data: dict):
             employees = await conn.fetch("SELECT user_id FROM employees WHERE user_id = $1", user_id)
         else:
             employees = await conn.fetch("SELECT user_id FROM employees")
+        
+        if not employees:
+            return {"message": "No employees found to generate payroll for", "payroll": []}
         
         generated = []
         for emp in employees:
