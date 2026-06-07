@@ -4,8 +4,8 @@ import { useAppContext } from '../contexts/AppContext.jsx'
 import DarkModeToggle from '../components/DarkModeToggle.jsx'
 
 const Login = () => {
-  const { login, signup, addToast } = useAppContext()
-  const navigate = useNavigate()  // 👈 Add this hook
+  const { login, signup, addToast, user, logout } = useAppContext()
+  const navigate = useNavigate()
   const [isSignup, setIsSignup] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,7 +23,7 @@ const Login = () => {
       case 'Management Admin':
         return '/admin/dashboard'
       case 'HR Recruiter':
-        return '/hr/candidates'  // HR goes to candidates page
+        return '/hr/candidates'
       case 'Senior Manager':
         return '/manager/dashboard'
       case 'Employee':
@@ -66,24 +66,16 @@ const Login = () => {
         success = await login(email, password)
 
         if (success) {
-          const userStr = localStorage.getItem('futurehr-user')
-          if (userStr) {
-            const user = JSON.parse(userStr)
-
-            if (user.role === 'Management Admin') {
-              // Admin must use the dedicated admin login page — clear session and redirect
-              localStorage.removeItem('futurehr-user')
-              try { await import('../services/api.js').then(m => m.authApi.logout()) } catch { /* ignore */ }
-              addToast('Admin accounts must log in at the Admin portal.', 'error')
-              navigate('/admin')
-              return
-            }
-
-            addToast('Successfully logged in!', 'success')
-            navigate(getRedirectPath(user.role))
-          } else {
-            navigate('/')
+          if (user && user.role === 'Management Admin') {
+            // Admin must use the dedicated admin login page — clear session and redirect
+            try { await logout(user.role, { silent: true, redirect: false }) } catch { /* ignore */ }
+            addToast('Admin accounts must log in at the Admin portal.', 'error')
+            navigate('/admin')
+            return
           }
+
+          addToast('Successfully logged in!', 'success')
+          navigate(getRedirectPath(user?.role))
         }
       }
     } catch (error) {

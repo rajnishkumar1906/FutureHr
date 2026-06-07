@@ -5,7 +5,7 @@ import DarkModeToggle from '../../components/DarkModeToggle.jsx'
 import CandidateNavbar from '../../components/CandidateNavbar.jsx'
 
 const CandidateLogin = () => {
-  const { login, signup, logout, addToast } = useAppContext()
+  const { login, signup, logout, addToast, user } = useAppContext()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/careers/status'
@@ -38,12 +38,12 @@ const CandidateLogin = () => {
       } else {
         const success = await login(email, password)
         if (success) {
-          const user = JSON.parse(localStorage.getItem('user') || '{}')
-          if (user.role === 'Candidate') {
+          // Use user from context instead of localStorage!
+          if (user && user.role === 'Candidate') {
             navigate(redirectTo)
           } else {
             // Wrong role — clear state silently, stay on this page to show error
-            await logout(user.role, { silent: true, redirect: false })
+            await logout(user?.role, { silent: true, redirect: false })
             addToast('This portal is for candidates only. Staff should use the employee login.', 'error')
           }
         }

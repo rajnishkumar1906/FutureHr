@@ -4,7 +4,7 @@ import { useAppContext } from '../contexts/AppContext.jsx'
 import DarkModeToggle from '../components/DarkModeToggle.jsx'
 
 const AdminLogin = () => {
-  const { login, addToast, isDarkMode } = useAppContext()
+  const { login, addToast, isDarkMode, user, logout } = useAppContext()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,15 +17,12 @@ const AdminLogin = () => {
     try {
       const success = await login(email, password)
       if (success) {
-        const userStr = localStorage.getItem('futurehr-user')
-        const user = userStr ? JSON.parse(userStr) : null
         if (user?.role === 'Management Admin') {
           addToast('Welcome, Admin!', 'success')
           navigate('/admin/dashboard')
         } else {
           // Wrong role — log them out
-          localStorage.removeItem('futurehr-user')
-          localStorage.removeItem('token')
+          await logout(user?.role, { silent: true, redirect: false })
           addToast('Access denied. This portal is for admins only.', 'error')
         }
       }
