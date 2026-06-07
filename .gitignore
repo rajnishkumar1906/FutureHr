@@ -17,6 +17,7 @@ env/
 .env_backup
 
 # ── Secrets — NEVER commit these ──────────────────────
+services/auth/create_admin.py
 services/auth/.env
 services/hrms/.env
 services/gateway/.env
