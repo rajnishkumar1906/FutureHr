@@ -15,59 +15,82 @@ const Dashboard = () => {
   const [applications, setApplications] = useState([])
   const [candidates, setCandidates] = useState([])
   const [teamData, setTeamData] = useState([])
+  const [employeeData, setEmployeeData] = useState(null)
 
   useEffect(() => {
+    console.log('=== Dashboard Mounted ===')
+    console.log('Current user:', user)
+    console.log('User role:', user?.role)
+    
     const fetchStats = async () => {
       try {
-        const [employeesRes, candidatesRes, attendanceRes, payrollRes, jobsRes, appsRes, screeningsRes] = await Promise.allSettled([
-          hrmsApi.getEmployees(), 
-          aiRecruitmentApi.getCandidates(), 
-          hrmsApi.getAttendance(), 
-          hrmsApi.getPayroll(),
-          aiRecruitmentApi.getJobs(),
-          aiRecruitmentApi.getApplications(),
-          aiRecruitmentApi.getResumeScreenings()
-        ])
-        
-        const apps = appsRes.status === 'fulfilled' ? (appsRes.value.data || []) : []
-        const cand = candidatesRes.status === 'fulfilled' ? (candidatesRes.value.data || []) : []
-        
-        setApplications(apps)
-        setCandidates(cand)
-        
-        // Senior Manager — fetch team-specific data
-        let teamCount = 0, teamPresent = 0, pendingLeaves = 0, teamPerformance = 0, team = []
-        if (user?.role === 'Senior Manager' && user?.id) {
-          const [teamRes, leavesRes] = await Promise.allSettled([
-            hrmsApi.getTeam(user.id),
-            hrmsApi.getLeaveRequests({ manager_id: user.id })
+        // Fetch data based on role
+        if (user?.role === 'Employee' && user?.id) {
+          // Fetch employee-specific data
+          const [attendanceRes, payrollRes, goalsRes, leaveBalanceRes] = await Promise.allSettled([
+            hrmsApi.getAttendanceByEmployee(user.id),
+            hrmsApi.getPayrollByEmployee(user.id),
+            hrmsApi.getPerformanceGoals({ user_id: user.id }),
+            hrmsApi.getLeaveBalance(user.id)
           ])
-          if (teamRes.status === 'fulfilled') {
-            team = teamRes.value.data || []
-            teamCount = team.length
-            teamPresent = team.filter(m => m.attendance_today === 'Present').length
-            teamPerformance = team.length
-              ? Math.round(team.reduce((s, m) => s + (m.performance_avg || 0), 0) / team.length)
-              : 0
-            setTeamData(team)
+          setEmployeeData({
+            attendance: attendanceRes.status === 'fulfilled' ? attendanceRes.value.data : [],
+            payroll: payrollRes.status === 'fulfilled' ? payrollRes.value.data : [],
+            goals: goalsRes.status === 'fulfilled' ? goalsRes.value.data : [],
+            leaveBalance: leaveBalanceRes.status === 'fulfilled' ? leaveBalanceRes.value.data : null
+          })
+        } else {
+          // Fetch general data for admin/HR/manager
+          const [employeesRes, candidatesRes, attendanceRes, payrollRes, jobsRes, appsRes, screeningsRes] = await Promise.allSettled([
+            hrmsApi.getEmployees(), 
+            aiRecruitmentApi.getCandidates(), 
+            hrmsApi.getAttendance(), 
+            hrmsApi.getPayroll(),
+            aiRecruitmentApi.getJobs(),
+            aiRecruitmentApi.getApplications(),
+            aiRecruitmentApi.getResumeScreenings()
+          ])
+          
+          const apps = appsRes.status === 'fulfilled' ? (appsRes.value.data || []) : []
+          const cand = candidatesRes.status === 'fulfilled' ? (candidatesRes.value.data || []) : []
+          
+          setApplications(apps)
+          setCandidates(cand)
+          
+          // Senior Manager — fetch team-specific data
+          let teamCount = 0, teamPresent = 0, pendingLeaves = 0, teamPerformance = 0, team = []
+          if (user?.role === 'Senior Manager' && user?.id) {
+            const [teamRes, leavesRes] = await Promise.allSettled([
+              hrmsApi.getTeam(user.id),
+              hrmsApi.getLeaveRequests({ manager_id: user.id })
+            ])
+            if (teamRes.status === 'fulfilled') {
+              team = teamRes.value.data || []
+              teamCount = team.length
+              teamPresent = team.filter(m => m.attendance_today === 'Present').length
+              teamPerformance = team.length
+                ? Math.round(team.reduce((s, m) => s + (m.performance_avg || 0), 0) / team.length)
+                : 0
+              setTeamData(team)
+            }
+            if (leavesRes.status === 'fulfilled') {
+              pendingLeaves = (leavesRes.value.data || []).filter(l => l.status === 'Pending').length
+            }
           }
-          if (leavesRes.status === 'fulfilled') {
-            pendingLeaves = (leavesRes.value.data || []).filter(l => l.status === 'Pending').length
-          }
-        }
 
-        setStats({
-          totalEmployees: employeesRes.status === 'fulfilled' ? (employeesRes.value.data?.length || 0) : 0,
-          totalCandidates: candidatesRes.status === 'fulfilled' ? (candidatesRes.value.data?.length || 0) : 0,
-          totalAttendance: attendanceRes.status === 'fulfilled' ? (attendanceRes.value.data?.length || 0) : 0,
-          totalPayroll: payrollRes.status === 'fulfilled' ? (payrollRes.value.data?.length || 0) : 0,
-          openJobs: jobsRes.status === 'fulfilled' ? (jobsRes.value.data?.filter(j => j.status === 'Open').length || 0) : 0,
-          applications: apps.length,
-          teamCount, teamPresent, pendingLeaves, teamPerformance
-        })
-        
-        if (screeningsRes.status === 'fulfilled') {
-          setScreenings(screeningsRes.value.data || [])
+          setStats({
+            totalEmployees: employeesRes.status === 'fulfilled' ? (employeesRes.value.data?.length || 0) : 0,
+            totalCandidates: candidatesRes.status === 'fulfilled' ? (candidatesRes.value.data?.length || 0) : 0,
+            totalAttendance: attendanceRes.status === 'fulfilled' ? (attendanceRes.value.data?.length || 0) : 0,
+            totalPayroll: payrollRes.status === 'fulfilled' ? (payrollRes.value.data?.length || 0) : 0,
+            openJobs: jobsRes.status === 'fulfilled' ? (jobsRes.value.data?.filter(j => j.status === 'Open').length || 0) : 0,
+            applications: apps.length,
+            teamCount, teamPresent, pendingLeaves, teamPerformance
+          })
+          
+          if (screeningsRes.status === 'fulfilled') {
+            setScreenings(screeningsRes.value.data || [])
+          }
         }
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error)
@@ -102,13 +125,20 @@ const Dashboard = () => {
           { title: 'Pending Leaves', value: stats.pendingLeaves ?? 0, icon: '📋', color: 'yellow' },
           { title: 'Avg Performance', value: `${stats.teamPerformance ?? 0}%`, icon: '🎯', color: 'purple' }
         ]
-      case 'Employee':
+      case 'Employee': {
+        const attendanceCount = employeeData?.attendance?.length || 0
+        const pendingGoals = employeeData?.goals?.filter(g => g.status !== 'Completed').length || 0
+        const leaveBalance = employeeData?.leaveBalance?.total_leave_days || 0
+        const latestPayroll = employeeData?.payroll?.[0]?.net_salary || 0
+        const formattedPayroll = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(latestPayroll)
+        
         return [
-          { title: 'Attendance %', value: '0%', icon: '📅', color: 'green' },
-          { title: 'Leave Balance', value: '0 days', icon: '🏖️', color: 'blue' },
-          { title: 'This Month', value: '$0', icon: '💰', color: 'orange' },
-          { title: 'Goal Progress', value: '0%', icon: '🎯', color: 'purple' }
+          { title: 'Attendance Records', value: attendanceCount, icon: '📅', color: 'green' },
+          { title: 'Leave Balance', value: `${leaveBalance} days`, icon: '🏖️', color: 'blue' },
+          { title: 'Latest Payroll', value: formattedPayroll, icon: '💰', color: 'orange' },
+          { title: 'Pending Goals', value: pendingGoals, icon: '🎯', color: 'purple' }
         ]
+      }
       default:
         return [
           { title: 'Welcome', value: 'FutureHR', icon: '🚀', color: 'indigo' }
@@ -131,6 +161,7 @@ const Dashboard = () => {
           count: statusCounts[key]
         }))
         return {
+          showChart: true,
           chartType: 'pie',
           data: candidateStatusData,
           title: 'Candidate Status Distribution',
@@ -153,23 +184,19 @@ const Dashboard = () => {
           count: attendanceCounts[key]
         }))
         return {
+          showChart: true,
           chartType: 'pie',
           data: teamAttendanceData,
           title: 'Team Attendance Today',
           colors: ['#10b981', '#f59e0b', '#ef4444']
         }
       }
+      case 'Employee': {
+        // No chart for employees (or add specific later)
+        return { showChart: false }
+      }
       default:
-        // Default: simple chart if no specific role
-        return {
-          chartType: 'bar',
-          data: [
-            { name: 'Employees', count: stats.totalEmployees },
-            { name: 'Candidates', count: stats.totalCandidates }
-          ],
-          title: 'Overview',
-          colors: ['#4f46e5', '#0ea5e9']
-        }
+        return { showChart: false }
     }
   }
 
@@ -201,7 +228,7 @@ const Dashboard = () => {
         ))}
       </div>
       
-      {chartConfig.data.length > 0 && (
+      {chartConfig.showChart && chartConfig.data.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border">
             <h2 className="text-lg font-semibold mb-6">{chartConfig.title}</h2>
