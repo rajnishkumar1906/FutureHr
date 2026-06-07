@@ -1,0 +1,5 @@
+GATEWAY_SERVER=https://futurehr.onrender.com
+AUTH_SERVER=https://futurehr-1.onrender.com
+HRMS_SERVER=https://futurehr-hrms.onrender.com
+AI_RECRUITMENT_SERVICE_URL=https://futurehr-ai-recruitment.onrender.com
+FRONTEND_URL=https://future-hr.vercel.app
