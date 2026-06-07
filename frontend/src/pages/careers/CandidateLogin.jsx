@@ -40,9 +40,12 @@ const CandidateLogin = () => {
                 const loggedInUser = await login(email, password)
                 console.log('CandidateLogin: login returned:', loggedInUser)
                 if (loggedInUser) {
-                  if (loggedInUser.role === 'Candidate' || loggedInUser.role === 'Employee') {
-                    console.log('CandidateLogin: Redirecting to:', redirectTo)
-                    window.location.href = redirectTo // Full page redirect
+                  if (loggedInUser.role === 'Employee') {
+                    // Hired candidate — send to employee portal, not candidate portal
+                    addToast('Your account has been upgraded to Employee. Welcome!', 'success')
+                    window.location.href = '/employee/dashboard'
+                  } else if (loggedInUser.role === 'Candidate') {
+                    window.location.href = redirectTo // '/careers/status'
                   } else {
                     // Wrong role — clear state silently, stay on this page to show error
                     await logout(loggedInUser?.role, { silent: true, redirect: false })

@@ -84,9 +84,11 @@ const App = () => {
         <Route
           path="/careers/login"
           element={
-            isAuthenticated && (user?.role === 'Candidate' || user?.role === 'Employee')
-              ? <Navigate to="/careers/status" replace />
-              : <CandidateLogin />
+            isAuthenticated && user?.role === 'Employee'
+              ? <Navigate to="/employee/dashboard" replace />
+              : isAuthenticated && user?.role === 'Candidate'
+                ? <Navigate to="/careers/status" replace />
+                : <CandidateLogin />
           }
         />
 
