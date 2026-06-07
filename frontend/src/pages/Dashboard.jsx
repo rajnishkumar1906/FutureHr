@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAppContext } from '../contexts/AppContext.jsx'
 import { hrmsApi, aiRecruitmentApi } from '../services/api.js'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
@@ -6,10 +6,15 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const Dashboard = () => {
   const { user, addToast } = useAppContext()
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ totalEmployees: 0, totalCandidates: 0, totalAttendance: 0, totalPayroll: 0, openJobs: 0, applications: 0, teamCount: 0, teamPresent: 0, pendingLeaves: 0, teamPerformance: 0 })
-  const [dataLoaded, setDataLoaded] = useState(false)
+  const [stats, setStats] = useState({ 
+    totalEmployees: 0, totalCandidates: 0, totalAttendance: 0, totalPayroll: 0, 
+    openJobs: 0, applications: 0, teamCount: 0, teamPresent: 0, 
+    pendingLeaves: 0, teamPerformance: 0 
+  })
   const [screenings, setScreenings] = useState([])
   const [applications, setApplications] = useState([])
+  const [candidates, setCandidates] = useState([])
+  const [teamData, setTeamData] = useState([])
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -25,23 +30,26 @@ const Dashboard = () => {
         ])
         
         const apps = appsRes.status === 'fulfilled' ? (appsRes.value.data || []) : []
+        const cand = candidatesRes.status === 'fulfilled' ? (candidatesRes.value.data || []) : []
         
         setApplications(apps)
+        setCandidates(cand)
         
         // Senior Manager — fetch team-specific data
-        let teamCount = 0, teamPresent = 0, pendingLeaves = 0, teamPerformance = 0
+        let teamCount = 0, teamPresent = 0, pendingLeaves = 0, teamPerformance = 0, team = []
         if (user?.role === 'Senior Manager' && user?.id) {
           const [teamRes, leavesRes] = await Promise.allSettled([
             hrmsApi.getTeam(user.id),
             hrmsApi.getLeaveRequests({ manager_id: user.id })
           ])
           if (teamRes.status === 'fulfilled') {
-            const team = teamRes.value.data || []
+            team = teamRes.value.data || []
             teamCount = team.length
             teamPresent = team.filter(m => m.attendance_today === 'Present').length
             teamPerformance = team.length
               ? Math.round(team.reduce((s, m) => s + (m.performance_avg || 0), 0) / team.length)
               : 0
+            setTeamData(team)
           }
           if (leavesRes.status === 'fulfilled') {
             pendingLeaves = (leavesRes.value.data || []).filter(l => l.status === 'Pending').length
@@ -65,11 +73,10 @@ const Dashboard = () => {
         console.error('Failed to fetch dashboard stats:', error)
       } finally {
         setLoading(false)
-        setDataLoaded(true)
       }
     }
     fetchStats()
-  }, [])
+  }, [user?.role, user?.id])
 
   const getCards = () => {
     switch (user?.role) {
@@ -81,11 +88,12 @@ const Dashboard = () => {
           { title: 'Open Positions', value: stats.openJobs, icon: '💼', color: 'purple' }
         ]
       case 'HR Recruiter':
+        const hiredCount = candidates.filter(c => c.status === 'Hired').length
         return [
           { title: 'Open Jobs', value: stats.openJobs, icon: '💼', color: 'purple' },
           { title: 'Applications', value: stats.applications, icon: '📝', color: 'indigo' },
           { title: 'Screened', value: screenings.length, icon: '✓', color: 'green' },
-          { title: 'Hired', value: 0, icon: '🎉', color: 'yellow' }
+          { title: 'Hired', value: hiredCount, icon: '🎉', color: 'yellow' }
         ]
       case 'Senior Manager':
         return [
@@ -108,23 +116,68 @@ const Dashboard = () => {
     }
   }
 
-  const chartData = [
-    { name: 'Employees', count: stats.totalEmployees },
-    { name: 'Candidates', count: stats.totalCandidates },
-    { name: 'Attendance', count: stats.totalAttendance },
-    { name: 'Payroll', count: stats.totalPayroll }
-  ]
-  const pieData = [
-    { name: 'Employees', value: stats.totalEmployees },
-    { name: 'Candidates', value: stats.totalCandidates },
-    { name: 'Attendance', value: stats.totalAttendance },
-    { name: 'Payroll', value: stats.totalPayroll }
-  ]
-  const COLORS = ['#4f46e5', '#0ea5e9', '#8b5cf6', '#f59e0b']
+  // Get chart data based on role
+  const getChartData = () => {
+    switch (user?.role) {
+      case 'Management Admin':
+      case 'HR Recruiter': {
+        // Candidate status distribution
+        const statusCounts = {}
+        candidates.forEach(c => {
+          statusCounts[c.status] = (statusCounts[c.status] || 0) + 1
+        })
+        const candidateStatusData = Object.keys(statusCounts).map(key => ({
+          name: key,
+          count: statusCounts[key]
+        }))
+        return {
+          chartType: 'pie',
+          data: candidateStatusData,
+          title: 'Candidate Status Distribution',
+          colors: ['#4f46e5', '#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
+        }
+      }
+      case 'Senior Manager': {
+        // Team attendance breakdown
+        const attendanceCounts = { Present: 0, Late: 0, Absent: 0 }
+        teamData.forEach(m => {
+          const status = m.attendance_today || 'Absent'
+          if (attendanceCounts.hasOwnProperty(status)) {
+            attendanceCounts[status]++
+          } else {
+            attendanceCounts.Absent++
+          }
+        })
+        const teamAttendanceData = Object.keys(attendanceCounts).map(key => ({
+          name: key,
+          count: attendanceCounts[key]
+        }))
+        return {
+          chartType: 'pie',
+          data: teamAttendanceData,
+          title: 'Team Attendance Today',
+          colors: ['#10b981', '#f59e0b', '#ef4444']
+        }
+      }
+      default:
+        // Default: simple chart if no specific role
+        return {
+          chartType: 'bar',
+          data: [
+            { name: 'Employees', count: stats.totalEmployees },
+            { name: 'Candidates', count: stats.totalCandidates }
+          ],
+          title: 'Overview',
+          colors: ['#4f46e5', '#0ea5e9']
+        }
+    }
+  }
+
+  const chartConfig = getChartData()
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center">
+      <div className="p-8 flex items-center justify-center min-h-[60vh]">
         <div className="w-12 h-12 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
       </div>
     )
@@ -147,41 +200,44 @@ const Dashboard = () => {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border">
-          <h2 className="text-lg font-semibold mb-6">Overview (Bar Chart)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#4f46e5" radius={[8,8,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      
+      {chartConfig.data.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border">
+            <h2 className="text-lg font-semibold mb-6">{chartConfig.title}</h2>
+            {chartConfig.chartType === 'pie' ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie 
+                    data={chartConfig.data} 
+                    cx="50%" 
+                    cy="50%" 
+                    labelLine={false} 
+                    label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`} 
+                    outerRadius={100} 
+                    dataKey="count"
+                  >
+                    {chartConfig.data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={chartConfig.colors[index % chartConfig.colors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartConfig.data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#4f46e5" radius={[8,8,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border">
-          <h2 className="text-lg font-semibold mb-6">Distribution (Pie Chart)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie 
-                data={pieData} 
-                cx="50%" 
-                cy="50%" 
-                labelLine={false} 
-                label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`} 
-                outerRadius={100} 
-                dataKey="value"
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
