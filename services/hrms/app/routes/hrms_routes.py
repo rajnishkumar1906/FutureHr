@@ -278,6 +278,27 @@ async def get_attendance(user_id: int = None):
     finally:
         await conn.close()
 
+@router.get("/attendance/employee/{user_id}", response_model=List[AttendanceResponse])
+async def get_attendance_by_employee(user_id: int, month: int = None, year: int = None):
+    """Get attendance records for a specific employee, optionally filtered by month and year."""
+    conn = await get_db_connection()
+    try:
+        from datetime import date
+        today = date.today()
+        m = month or today.month
+        y = year or today.year
+        
+        if month and year:
+            attendance_records = await conn.fetch(
+                "SELECT * FROM attendance WHERE user_id = $1 AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3",
+                user_id, m, y
+            )
+        else:
+            attendance_records = await conn.fetch("SELECT * FROM attendance WHERE user_id = $1", user_id)
+        return [dict(a) for a in attendance_records]
+    finally:
+        await conn.close()
+
 @router.get("/attendance/summary/{user_id}")
 async def get_attendance_summary(user_id: int, month: int = None, year: int = None):
     """Returns present_days and total_working_days for a user in a given month/year."""
