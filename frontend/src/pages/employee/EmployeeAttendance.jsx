@@ -29,6 +29,11 @@ const EmployeeAttendance = () => {
     }
   }
 
+  const isTodayAttendanceMarked = () => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    return attendance.some(a => new Date(a.date).toISOString().split('T')[0] === todayStr)
+  }
+
   const markAttendance = async () => {
     setMarking(true)
     try {
@@ -135,9 +140,15 @@ const EmployeeAttendance = () => {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Mark Today's Attendance</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <button onClick={markAttendance} disabled={marking} className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-xl font-medium disabled:opacity-60 hover:from-indigo-700 hover:to-cyan-700 transition-all shadow-lg">
-          {marking ? 'Marking...' : 'Mark Present'}
-        </button>
+        {isTodayAttendanceMarked() ? (
+          <span className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-medium shadow-lg flex items-center gap-2">
+            ✅ Already Marked Today
+          </span>
+        ) : (
+          <button onClick={markAttendance} disabled={marking} className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-xl font-medium disabled:opacity-60 hover:from-indigo-700 hover:to-cyan-700 transition-all shadow-lg">
+            {marking ? 'Marking...' : 'Mark Present'}
+          </button>
+        )}
       </div>
 
       {/* Calendar */}
