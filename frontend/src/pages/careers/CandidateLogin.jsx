@@ -36,10 +36,13 @@ const CandidateLogin = () => {
           setConfirmPassword('')
         }
       } else {
+                console.log('CandidateLogin: Starting login...')
                 const loggedInUser = await login(email, password)
+                console.log('CandidateLogin: login returned:', loggedInUser)
                 if (loggedInUser) {
                   if (loggedInUser.role === 'Candidate' || loggedInUser.role === 'Employee') {
-                    navigate(redirectTo)
+                    console.log('CandidateLogin: Redirecting to:', redirectTo)
+                    window.location.href = redirectTo // Full page redirect
                   } else {
                     // Wrong role — clear state silently, stay on this page to show error
                     await logout(loggedInUser?.role, { silent: true, redirect: false })
