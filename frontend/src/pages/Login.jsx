@@ -63,19 +63,19 @@ const Login = () => {
           setLastName('')
         }
       } else {
-        success = await login(email, password)
-
-        if (success) {
-          if (user && user.role === 'Management Admin') {
+        const loggedInUser = await login(email, password)
+        console.log('Login.jsx: login returned:', loggedInUser)
+        if (loggedInUser) {
+          if (loggedInUser.role === 'Management Admin') {
             // Admin must use the dedicated admin login page — clear session and redirect
-            try { await logout(user.role, { silent: true, redirect: false }) } catch { /* ignore */ }
+            try { await logout(loggedInUser.role, { silent: true, redirect: false }) } catch { /* ignore */ }
             addToast('Admin accounts must log in at the Admin portal.', 'error')
-            navigate('/admin')
+            window.location.href = '/admin'
             return
           }
 
-          addToast('Successfully logged in!', 'success')
-          navigate(getRedirectPath(user?.role))
+          console.log('Login.jsx: Redirecting to:', getRedirectPath(loggedInUser.role))
+          window.location.href = getRedirectPath(loggedInUser.role)
         }
       }
     } catch (error) {

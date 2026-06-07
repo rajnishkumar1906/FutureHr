@@ -15,14 +15,15 @@ const AdminLogin = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      const success = await login(email, password)
-      if (success) {
-        if (user?.role === 'Management Admin') {
+      const loggedInUser = await login(email, password)
+      console.log('AdminLogin.jsx: login returned:', loggedInUser)
+      if (loggedInUser) {
+        if (loggedInUser.role === 'Management Admin') {
           addToast('Welcome, Admin!', 'success')
-          navigate('/admin/dashboard')
+          window.location.href = '/admin/dashboard'
         } else {
           // Wrong role — log them out
-          await logout(user?.role, { silent: true, redirect: false })
+          await logout(loggedInUser?.role, { silent: true, redirect: false })
           addToast('Access denied. This portal is for admins only.', 'error')
         }
       }
