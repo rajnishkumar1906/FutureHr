@@ -45,7 +45,10 @@ export const authApi = {
     formData.append('username', email)
     formData.append('password', password)
     return apiClient.post('/api/auth/login', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: {
+        'Accept': 'application/json'
+        // Don't set Content-Type manually for FormData—axios will set it with boundary
+      }
     })
   },
   register: (userData) => apiClient.post('/api/auth/register', userData),
