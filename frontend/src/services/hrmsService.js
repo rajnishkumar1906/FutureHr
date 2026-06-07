@@ -3,136 +3,136 @@
 export const hrmsApi = {
   // ============ EMPLOYEES ============
   getEmployees: () => {
-    return apiClient.get('/hrms/employees')
+    return apiClient.get('/api/hrms/employees')
   },
 
   getEmployee: (id) => {
-    return apiClient.get(`/hrms/employees/${id}`)
+    return apiClient.get(`/api/hrms/employees/${id}`)
   },
 
   createEmployee: (data) => {
-    return apiClient.post('/hrms/employees', data)
+    return apiClient.post('/api/hrms/employees', data)
   },
 
   updateEmployee: (id, data) => {
-    return apiClient.put(`/hrms/employees/${id}`, data)
+    return apiClient.put(`/api/hrms/employees/${id}`, data)
   },
 
   deleteEmployee: (id) => {
-    return apiClient.delete(`/hrms/employees/${id}`)
+    return apiClient.delete(`/api/hrms/employees/${id}`)
   },
 
   // ============ DEPARTMENTS ============
   getDepartments: () => {
-    return apiClient.get('/hrms/departments')
+    return apiClient.get('/api/hrms/departments')
   },
 
   getDepartment: (id) => {
-    return apiClient.get(`/hrms/departments/${id}`)
+    return apiClient.get(`/api/hrms/departments/${id}`)
   },
 
   createDepartment: (data) => {
-    return apiClient.post('/hrms/departments', data)
+    return apiClient.post('/api/hrms/departments', data)
   },
 
   updateDepartment: (id, data) => {
-    return apiClient.put(`/hrms/departments/${id}`, data)
+    return apiClient.put(`/api/hrms/departments/${id}`, data)
   },
 
   deleteDepartment: (id) => {
-    return apiClient.delete(`/hrms/departments/${id}`)
+    return apiClient.delete(`/api/hrms/departments/${id}`)
   },
 
   // ============ ATTENDANCE ============
   getAttendance: (params) => {
-    return apiClient.get('/hrms/attendance', { params })
+    return apiClient.get('/api/hrms/attendance', { params })
   },
 
   getAttendanceByEmployee: (employeeId, month, year) => {
-    return apiClient.get(`/hrms/attendance/employee/${employeeId}`, { params: { month, year } })
+    return apiClient.get(`/api/hrms/attendance/employee/${employeeId}`, { params: { month, year } })
   },
 
   markAttendance: (data) => {
-    return apiClient.post('/hrms/attendance', data)
+    return apiClient.post('/api/hrms/attendance', data)
   },
 
   updateAttendance: (id, data) => {
-    return apiClient.put(`/hrms/attendance/${id}`, data)
+    return apiClient.put(`/api/hrms/attendance/${id}`, data)
   },
 
   getAttendanceSummary: (employeeId, month, year) => {
-    return apiClient.get(`/hrms/attendance/summary/${employeeId}`, { params: { month, year } })
+    return apiClient.get(`/api/hrms/attendance/summary/${employeeId}`, { params: { month, year } })
   },
 
   // ============ PAYROLL ============
   getPayroll: (params) => {
-    return apiClient.get('/hrms/payroll', { params })
+    return apiClient.get('/api/hrms/payroll', { params })
   },
 
   getPayrollByEmployee: (employeeId) => {
-    return apiClient.get(`/hrms/payroll/employee/${employeeId}`)
+    return apiClient.get(`/api/hrms/payroll/employee/${employeeId}`)
   },
 
   generatePayroll: (data) => {
-    return apiClient.post('/hrms/payroll/generate', data)
+    return apiClient.post('/api/hrms/payroll/generate', data)
   },
 
   updatePayroll: (id, data) => {
-    return apiClient.put(`/hrms/payroll/${id}`, data)
+    return apiClient.put(`/api/hrms/payroll/${id}`, data)
   },
 
   downloadPayslip: (id) => {
-    return apiClient.get(`/hrms/payroll/${id}/download`, { responseType: 'blob' })
+    return apiClient.get(`/api/hrms/payroll/${id}/download`, { responseType: 'blob' })
   },
 
   // ============ PERFORMANCE GOALS ============
   getPerformanceGoals: (params) => {
-    return apiClient.get('/hrms/performance/goals', { params })
+    return apiClient.get('/api/hrms/performance-goals', { params })
   },
 
   getPerformanceGoal: (id) => {
-    return apiClient.get(`/hrms/performance/goals/${id}`)
+    return apiClient.get(`/api/hrms/performance-goals/${id}`)
   },
 
   createPerformanceGoal: (data) => {
-    return apiClient.post('/hrms/performance/goals', data)
+    return apiClient.post('/api/hrms/performance-goals', data)
   },
 
   updatePerformanceGoal: (id, data) => {
-    return apiClient.put(`/hrms/performance/goals/${id}`, data)
+    return apiClient.put(`/api/hrms/performance-goals/${id}`, data)
   },
 
   deletePerformanceGoal: (id) => {
-    return apiClient.delete(`/hrms/performance/goals/${id}`)
+    return apiClient.delete(`/api/hrms/performance-goals/${id}`)
   },
 
   updateGoalProgress: (id, progress) => {
-    return apiClient.patch(`/hrms/performance/goals/${id}/progress`, { progress })
+    return apiClient.patch(`/api/hrms/performance-goals/${id}/progress`, { progress })
   },
 
   // ============ LEAVE REQUESTS ============
   getLeaveRequests: (params) => {
-    return apiClient.get('/hrms/leaves', { params })
+    return apiClient.get('/api/hrms/leaves', { params })
   },
 
   createLeaveRequest: (data) => {
-    return apiClient.post('/hrms/leaves', data)
+    return apiClient.post('/api/hrms/leaves', data)
   },
 
   updateLeaveRequest: (id, data) => {
-    return apiClient.put(`/hrms/leaves/${id}`, data)
+    return apiClient.put(`/api/hrms/leaves/${id}`, data)
   },
 
   approveLeaveRequest: (id) => {
-    return apiClient.patch(`/hrms/leaves/${id}/approve`)
+    return apiClient.patch(`/api/hrms/leaves/${id}/approve`)
   },
 
   rejectLeaveRequest: (id) => {
-    return apiClient.patch(`/hrms/leaves/${id}/reject`)
+    return apiClient.patch(`/api/hrms/leaves/${id}/reject`)
   },
 
   getLeaveBalance: (employeeId) => {
-    return apiClient.get(`/hrms/leaves/balance/${employeeId}`)
+    return apiClient.get(`/api/hrms/leaves/balance/${employeeId}`)
   },
 }
 
