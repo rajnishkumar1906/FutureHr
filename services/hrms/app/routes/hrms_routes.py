@@ -350,6 +350,48 @@ async def get_payroll(user_id: int = None):
     finally:
         await conn.close()
 
+@router.post("/payroll/generate")
+async def generate_payroll(data: dict):
+    """Generate payroll for employees (optionally filtered by user_id, month, year)"""
+    user_id = data.get("user_id")
+    month = data.get("month")
+    year = data.get("year")
+    basic_salary = data.get("basic_salary", 30000.0)
+    allowances = data.get("allowances", 0.0)
+    deductions = data.get("deductions", 0.0)
+    
+    conn = await get_db_connection()
+    try:
+        # Get employees to generate payroll for
+        if user_id:
+            employees = await conn.fetch("SELECT user_id FROM employees WHERE user_id = $1", user_id)
+        else:
+            employees = await conn.fetch("SELECT user_id FROM employees")
+        
+        generated = []
+        for emp in employees:
+            # Check if payroll already exists for this user, month, year
+            existing = await conn.fetchrow(
+                "SELECT id FROM payroll WHERE user_id = $1 AND month = $2 AND year = $3",
+                emp["user_id"], month, year
+            )
+            if not existing:
+                # Create new payroll record
+                net = basic_salary + allowances - deductions
+                new_payroll = await conn.fetchrow(
+                    """
+                    INSERT INTO payroll (user_id, month, year, basic_salary, allowances, deductions, net_salary, status)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending')
+                    RETURNING *
+                    """,
+                    emp["user_id"], month, year, basic_salary, allowances, deductions, net
+                )
+                generated.append(dict(new_payroll))
+        
+        return {"message": f"Generated {len(generated)} payroll records", "payroll": generated}
+    finally:
+        await conn.close()
+
 @router.get("/payroll/employee/{user_id}", response_model=List[PayrollResponse])
 async def get_payroll_by_employee(user_id: int):
     """Get payroll records for a specific employee."""
