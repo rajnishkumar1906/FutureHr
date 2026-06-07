@@ -16,7 +16,6 @@ client = genai.Client(api_key=settings.GEMINI_API_KEY)
 text_matcher = TextMatcher()
 
 
-
 def _sync_generate_json(prompt: str) -> Dict[str, Any]:
     response = client.models.generate_content(
         model=MODEL_NAME,

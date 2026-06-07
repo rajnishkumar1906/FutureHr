@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+﻿import React, { useState, useRef, useEffect } from 'react'
 
 const VoiceRecorder = ({ onRecordingComplete, maxDuration = 120, autoStart = false }) => {
   const [isRecording, setIsRecording] = useState(false)

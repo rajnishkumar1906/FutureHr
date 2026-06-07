@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { aiRecruitmentApi } from '../../services/api.js'
 import { useAppContext } from '../../contexts/AppContext.jsx'
 
