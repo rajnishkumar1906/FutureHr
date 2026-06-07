@@ -6,12 +6,14 @@ import logging
 from typing import Dict, Any, List, Optional
 import PyPDF2
 from io import BytesIO
+from .text_matcher import TextMatcher
 
 logger = logging.getLogger(__name__)
 
 MODEL_NAME = "gemini-2.0-flash"
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
+text_matcher = TextMatcher()
 
 
 
@@ -63,11 +65,32 @@ async def analyze_resume(
     job_description: str,
     job_requirements: str
 ) -> Dict[str, Any]:
+    # Calculate scores using TextMatcher
+    job_text = f"{job_title}\n{job_description}\n{job_requirements}"
+    
+    # Overall match between resume and job
+    overall_score = text_matcher.similarity(resume_text, job_text) * 100
+    
+    # Skills match: focus on job requirements
+    skills_match = text_matcher.similarity(resume_text, job_requirements) * 100
+    
+    # Experience match: focus on job description
+    experience_match = text_matcher.similarity(resume_text, job_description) * 100
+    
+    # Determine recommendation based on overall score
+    if overall_score >= 80:
+        recommendation = "Strong Hire"
+    elif overall_score >= 60:
+        recommendation = "Hire"
+    elif overall_score >= 40:
+        recommendation = "Consider"
+    else:
+        recommendation = "Reject"
 
     prompt = f"""
 You are an expert AI recruiter performing a detailed resume analysis.
 
-Analyze the resume against the job requirements and extract key information.
+Analyze the resume and extract key information (but do NOT calculate scores - scores have already been calculated).
 
 RESUME:
 {resume_text}
@@ -86,11 +109,7 @@ Return ONLY valid JSON in this exact structure:
 {{
     "candidate_name": "Full Name extracted from the very top of the resume",
     "candidate_email": "email@example.com extracted from resume (empty string if not found)",
-    "overall_score": 78,
-    "skills_match": 82,
-    "experience_match": 74,
-    "recommendation": "Strong Hire | Hire | Consider | Reject",
-    "analysis": "brief AI analysis sentence explaining the recommendation",
+    "analysis": "brief AI analysis sentence explaining the candidate fit",
     "summary": "2-3 sentence candidate summary covering background and fit",
     "strengths": "comma-separated list of candidate strengths relevant to the role",
     "weaknesses": "comma-separated list of candidate weaknesses",
@@ -110,15 +129,6 @@ Return ONLY valid JSON in this exact structure:
     "extracted_education": "Degree, Institution, Year",
     "extracted_certifications": "certifications or empty string"
 }}
-
-Scoring rules (0-100 integers):
-- overall_score: how well the candidate fits this role overall
-- skills_match: how many of the required skills the candidate has (100 = all skills present)
-- experience_match: how well the candidate's experience level and background match the job description
-- top_skills: exactly 5 most relevant skills found in the resume, scored by depth of experience
-- extracted_projects: list ALL notable projects, each with a one-line description
-- candidate_email: find any email pattern (user@domain.com) in the resume text
-- candidate_name: the full name at the top of the resume
 """
 
     try:
@@ -135,18 +145,14 @@ Scoring rules (0-100 integers):
         if not isinstance(top_skills, list):
             top_skills = []
 
-        overall = float(ai_result.get("overall_score", 50))
-        skills  = float(ai_result.get("skills_match", 50))
-        exp     = float(ai_result.get("experience_match", 50))
-
         return {
-            "candidate_score": overall,
-            "skills_match": skills,
-            "experience_match": exp,
-            "overall_score": overall,
+            "candidate_score": overall_score,
+            "skills_match": skills_match,
+            "experience_match": experience_match,
+            "overall_score": overall_score,
             "candidate_name": ai_result.get("candidate_name", ""),
             "candidate_email": ai_result.get("candidate_email", ""),
-            "recommendation": ai_result.get("recommendation", "Consider"),
+            "recommendation": recommendation,
             "analysis": ai_result.get("analysis", ""),
             "summary": ai_result.get("summary", ""),
             "strengths": ai_result.get("strengths", ""),
@@ -159,16 +165,17 @@ Scoring rules (0-100 integers):
             "extracted_certifications": ai_result.get("extracted_certifications", ""),
         }
 
-    except Exception:
+    except Exception as e:
+        logger.exception("Error processing resume with AI")
         return {
-            "candidate_score": 50,
-            "skills_match": 50,
-            "experience_match": 50,
-            "overall_score": 50,
+            "candidate_score": overall_score,
+            "skills_match": skills_match,
+            "experience_match": experience_match,
+            "overall_score": overall_score,
             "candidate_name": "",
             "candidate_email": "",
-            "recommendation": "Consider",
-            "analysis": "Resume analyzed — AI scoring unavailable",
+            "recommendation": recommendation,
+            "analysis": "Resume analyzed using TF-IDF and cosine similarity",
             "summary": "", "strengths": "", "weaknesses": "", "skill_gaps": "",
             "top_skills": [],
             "extracted_skills": [], "extracted_projects": [],
