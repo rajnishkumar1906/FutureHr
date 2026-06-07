@@ -186,7 +186,7 @@ async def generate_voice_questions(
     prompt = f"""
 You are an expert interviewer.
 
-Generate 10 relevant voice screening questions for this job.
+Generate 6 relevant voice screening questions for this job.
 
 JOB TITLE:
 {job_title}
@@ -201,8 +201,8 @@ Return ONLY valid JSON in this structure:
 
 {{
     "questions": [
-        "Question 1", "Question 2", "Question 3", "Question 4", "Question 5",
-        "Question 6", "Question 7", "Question 8", "Question 9", "Question 10"
+        "Question 1", "Question 2", "Question 3",
+        "Question 4", "Question 5", "Question 6"
     ]
 }}
 """
@@ -216,12 +216,8 @@ Return ONLY valid JSON in this structure:
             "Why are you interested in this role?",
             "What relevant experience do you have?",
             "What are your greatest strengths?",
-            "What are your areas for improvement?",
-            "Where do you see yourself in 5 years?",
-            "Why should we hire you?",
             "Describe a challenging project you worked on.",
-            "How do you handle pressure?",
-            "Do you have any questions for us?",
+            "Why should we hire you?",
         ]
 
 
