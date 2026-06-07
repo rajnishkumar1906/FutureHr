@@ -10,23 +10,9 @@ from io import BytesIO
 logger = logging.getLogger(__name__)
 
 MODEL_NAME = "gemini-2.0-flash"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-embedding_model = None
-
-
-def get_embedding_model():
-    global embedding_model
-    if embedding_model is None:
-        try:
-            from sentence_transformers import SentenceTransformer
-            embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-            logger.info("Embedding model loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load embedding model: {e}")
-    return embedding_model
 
 
 def _sync_generate_json(prompt: str) -> Dict[str, Any]:
@@ -45,18 +31,6 @@ def _sync_generate_text(prompt: str) -> str:
     return response.text or ""
 
 
-def _sync_cosine_similarity(text1: str, text2: str) -> float:
-    try:
-        model = get_embedding_model()
-        if model is None:
-            return 50.0
-        from sklearn.metrics.pairwise import cosine_similarity
-        embeddings = model.encode([text1, text2])
-        return float(cosine_similarity([embeddings[0]], [embeddings[1]])[0][0] * 100)
-    except Exception:
-        return 50.0
-
-
 async def _generate_json(prompt: str) -> Dict[str, Any]:
     try:
         return await asyncio.to_thread(_sync_generate_json, prompt)
@@ -71,10 +45,6 @@ async def _generate_text(prompt: str) -> str:
     except Exception as e:
         logger.exception("Gemini text generation failed")
         raise Exception(f"AI generation failed: {e}")
-
-
-async def calculate_cosine_similarity(text1: str, text2: str) -> float:
-    return await asyncio.to_thread(_sync_cosine_similarity, text1, text2)
 
 
 async def extract_text_from_pdf(pdf_bytes: bytes) -> str:
@@ -93,13 +63,6 @@ async def analyze_resume(
     job_description: str,
     job_requirements: str
 ) -> Dict[str, Any]:
-    job_full_text = f"{job_title}\n{job_description}\n{job_requirements}"
-
-    overall_similarity, skills_similarity, experience_similarity = await asyncio.gather(
-        calculate_cosine_similarity(resume_text, job_full_text),
-        calculate_cosine_similarity(resume_text, job_requirements),
-        calculate_cosine_similarity(resume_text, job_description),
-    )
 
     prompt = f"""
 You are an expert AI recruiter performing a detailed resume analysis.
@@ -123,6 +86,9 @@ Return ONLY valid JSON in this exact structure:
 {{
     "candidate_name": "Full Name extracted from the very top of the resume",
     "candidate_email": "email@example.com extracted from resume (empty string if not found)",
+    "overall_score": 78,
+    "skills_match": 82,
+    "experience_match": 74,
     "recommendation": "Strong Hire | Hire | Consider | Reject",
     "analysis": "brief AI analysis sentence explaining the recommendation",
     "summary": "2-3 sentence candidate summary covering background and fit",
@@ -145,11 +111,14 @@ Return ONLY valid JSON in this exact structure:
     "extracted_certifications": "certifications or empty string"
 }}
 
-Rules:
-- top_skills: exactly 5 most relevant skills, scored 0-100 based on experience depth and prominence in resume
-- extracted_projects: list ALL notable projects found, each with a concise one-line description
+Scoring rules (0-100 integers):
+- overall_score: how well the candidate fits this role overall
+- skills_match: how many of the required skills the candidate has (100 = all skills present)
+- experience_match: how well the candidate's experience level and background match the job description
+- top_skills: exactly 5 most relevant skills found in the resume, scored by depth of experience
+- extracted_projects: list ALL notable projects, each with a one-line description
 - candidate_email: find any email pattern (user@domain.com) in the resume text
-- candidate_name: the full name at the top of the resume (usually largest text or first line)
+- candidate_name: the full name at the top of the resume
 """
 
     try:
@@ -166,11 +135,15 @@ Rules:
         if not isinstance(top_skills, list):
             top_skills = []
 
+        overall = float(ai_result.get("overall_score", 50))
+        skills  = float(ai_result.get("skills_match", 50))
+        exp     = float(ai_result.get("experience_match", 50))
+
         return {
-            "candidate_score": overall_similarity,
-            "skills_match": skills_similarity,
-            "experience_match": experience_similarity,
-            "overall_score": overall_similarity,
+            "candidate_score": overall,
+            "skills_match": skills,
+            "experience_match": exp,
+            "overall_score": overall,
             "candidate_name": ai_result.get("candidate_name", ""),
             "candidate_email": ai_result.get("candidate_email", ""),
             "recommendation": ai_result.get("recommendation", "Consider"),
@@ -188,14 +161,14 @@ Rules:
 
     except Exception:
         return {
-            "candidate_score": overall_similarity,
-            "skills_match": skills_similarity,
-            "experience_match": experience_similarity,
-            "overall_score": overall_similarity,
+            "candidate_score": 50,
+            "skills_match": 50,
+            "experience_match": 50,
+            "overall_score": 50,
             "candidate_name": "",
             "candidate_email": "",
             "recommendation": "Consider",
-            "analysis": "Resume analyzed using cosine similarity",
+            "analysis": "Resume analyzed — AI scoring unavailable",
             "summary": "", "strengths": "", "weaknesses": "", "skill_gaps": "",
             "top_skills": [],
             "extracted_skills": [], "extracted_projects": [],
