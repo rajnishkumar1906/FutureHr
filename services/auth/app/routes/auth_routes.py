@@ -60,12 +60,14 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
         expires_delta=access_token_expires
     )
     
+    is_secure = settings.COOKIE_SECURE
     response.set_cookie(
         key="access_token",
         value=f"Bearer {access_token}",
         httponly=True,
         max_age=1800,
-        samesite="lax"
+        samesite="none" if is_secure else "lax",
+        secure=is_secure,
     )
     
     await conn.close()

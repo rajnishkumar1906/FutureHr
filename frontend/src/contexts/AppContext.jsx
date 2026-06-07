@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react'
-import { authApi } from '../services/api.js'
+import { authApi, setAuthToken } from '../services/api.js'
 
 const AppContext = createContext()
 
@@ -193,6 +193,10 @@ export const AppProvider = ({ children }) => {
         
         console.log('Validated user data:', validatedUser)
         
+        // Store JWT so cross-origin API requests can send it via Authorization header
+        const token = decryptedData?.access_token
+        if (token) setAuthToken(token)
+
         // Update state and storage
         setUser(validatedUser)
         setIsAuthenticated(true)
@@ -268,6 +272,7 @@ export const AppProvider = ({ children }) => {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem(USER_STORAGE_KEY)
+    setAuthToken(null)
     
     if (!silent) {
       addToast('Successfully logged out!', 'info')

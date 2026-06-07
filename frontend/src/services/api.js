@@ -10,9 +10,20 @@ export const apiClient = axios.create({
   withCredentials: true,
 })
 
-// Request interceptor (no need to add token, since it's in HttpOnly cookie)
+const TOKEN_KEY = 'futurehr-token'
+export const setAuthToken = (token) => {
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  else localStorage.removeItem(TOKEN_KEY)
+}
+export const getAuthToken = () => localStorage.getItem(TOKEN_KEY)
+
+// Attach JWT from localStorage so auth works cross-origin (cookie is same-site only)
 apiClient.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    const token = getAuthToken()
+    if (token) config.headers['Authorization'] = `Bearer ${token}`
+    return config
+  },
   (error) => Promise.reject(error)
 )
 
@@ -25,6 +36,7 @@ apiClient.interceptors.response.use(
       let role = null
       try { role = JSON.parse(stored)?.role } catch { /* ignore */ }
       localStorage.removeItem('futurehr-user')
+      localStorage.removeItem('futurehr-token')
       if (role === 'Candidate') {
         window.location.href = '/careers/login'
       } else if (role === 'Management Admin') {

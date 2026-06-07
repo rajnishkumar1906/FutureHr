@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 import asyncpg
 from typing import List, Optional
 from datetime import date
 from ..database import get_db_connection
+from ..auth_dep import get_current_user
 from ..schemas.schemas import (
     DepartmentCreate, DepartmentResponse,
     DesignationCreate, DesignationResponse,
@@ -20,7 +21,7 @@ def calculate_leave_days(start_date: date, end_date: date) -> int:
     delta = end_date - start_date
     return delta.days + 1
 
-router = APIRouter(prefix="/api/hrms", tags=["hrms"])
+router = APIRouter(prefix="/api/hrms", tags=["hrms"], dependencies=[Depends(get_current_user)])
 
 # Department Routes
 @router.post("/departments", response_model=DepartmentResponse, status_code=status.HTTP_201_CREATED)
