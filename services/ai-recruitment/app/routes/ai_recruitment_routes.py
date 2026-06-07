@@ -508,11 +508,11 @@ async def screen_resume_async(application_id: int):
                 extracted_email or None,
             )
             
-            # Update application status based on recommendation
+            # Update application status based on recommendation.
+            # AI never auto-rejects — only HR can reject manually.
+            # AI only fast-tracks Strong Hire candidates to voice screening.
             new_status = "Resume Screened"
-            if ai_result["recommendation"] == "Reject":
-                new_status = "Rejected"
-            elif ai_result["recommendation"] == "Strong Hire":
+            if ai_result["recommendation"] == "Strong Hire":
                 new_status = "Voice Screening Required"
             
             await conn.execute(
@@ -625,10 +625,8 @@ async def submit_voice_answers(application_id: int, request: SubmitVoiceAnswersR
             ai_result["analysis"]
         )
         
-        # Update application status
+        # AI never auto-rejects after voice screening — HR decides manually.
         new_status = "Voice Screened"
-        if ai_result["recommendation"] == "Reject":
-            new_status = "Rejected"
         
         await conn.execute(
             "UPDATE applications SET status = $1 WHERE id = $2",
