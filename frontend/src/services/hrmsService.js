@@ -49,7 +49,7 @@ export const hrmsApi = {
   },
 
   getAttendanceByEmployee: (employeeId, month, year) => {
-    return apiClient.get(`/api/hrms/attendance/employee/${employeeId}`, { params: { month, year } })
+    return apiClient.get(`/api/hrms/attendance`, { params: { user_id: employeeId, month, year } })
   },
 
   markAttendance: (data) => {
@@ -70,7 +70,7 @@ export const hrmsApi = {
   },
 
   getPayrollByEmployee: (employeeId) => {
-    return apiClient.get(`/api/hrms/payroll/employee/${employeeId}`)
+    return apiClient.get(`/api/hrms/payroll`, { params: { user_id: employeeId } })
   },
 
   generatePayroll: (data) => {

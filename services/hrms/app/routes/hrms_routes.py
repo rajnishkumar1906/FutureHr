@@ -312,6 +312,50 @@ async def get_payroll(user_id: int = None):
     finally:
         await conn.close()
 
+@router.get("/payroll/{id}", response_model=PayrollResponse)
+async def get_payroll_by_id(id: int):
+    conn = await get_db_connection()
+    try:
+        payroll = await conn.fetchrow("SELECT * FROM payroll WHERE id = $1", id)
+        if not payroll:
+            raise HTTPException(status_code=404, detail="Payroll not found")
+        return dict(payroll)
+    finally:
+        await conn.close()
+
+@router.put("/payroll/{id}", response_model=PayrollResponse)
+async def update_payroll(id: int, payroll: PayrollCreate):
+    conn = await get_db_connection()
+    try:
+        net_salary = payroll.basic_salary + payroll.allowances - payroll.deductions
+        updated_payroll = await conn.fetchrow(
+            """
+            UPDATE payroll 
+            SET user_id = $1, month = $2, year = $3, basic_salary = $4, allowances = $5, deductions = $6, net_salary = $7, status = $8
+            WHERE id = $9
+            RETURNING id, user_id, month, year, basic_salary, allowances, deductions, net_salary, status, created_at
+            """,
+            payroll.user_id, payroll.month, payroll.year, payroll.basic_salary,
+            payroll.allowances, payroll.deductions, net_salary, payroll.status, id
+        )
+        if not updated_payroll:
+            raise HTTPException(status_code=404, detail="Payroll not found")
+        return dict(updated_payroll)
+    finally:
+        await conn.close()
+
+@router.get("/payroll/{id}/download")
+async def download_payslip(id: int):
+    """Placeholder for payslip download. Returns dummy data for now."""
+    conn = await get_db_connection()
+    try:
+        payroll = await conn.fetchrow("SELECT * FROM payroll WHERE id = $1", id)
+        if not payroll:
+            raise HTTPException(status_code=404, detail="Payroll not found")
+        return {"message": "Payslip download placeholder", "payroll": dict(payroll)}
+    finally:
+        await conn.close()
+
 # Performance Goals Routes
 @router.post("/performance-goals", response_model=PerformanceGoalResponse, status_code=status.HTTP_201_CREATED)
 async def create_performance_goal(goal: PerformanceGoalCreate):
@@ -353,6 +397,29 @@ async def update_performance_goal(id: int, goal: PerformanceGoalCreate):
             RETURNING id, user_id, title, description, target_date, status, progress, created_at
             """,
             goal.user_id, goal.title, goal.description, goal.target_date, goal.status, goal.progress, id
+        )
+        if not updated_goal:
+            raise HTTPException(status_code=404, detail="Performance goal not found")
+        return dict(updated_goal)
+    finally:
+        await conn.close()
+
+@router.delete("/performance-goals/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_performance_goal(id: int):
+    conn = await get_db_connection()
+    try:
+        await conn.execute("DELETE FROM performance_goals WHERE id = $1", id)
+    finally:
+        await conn.close()
+
+@router.patch("/performance-goals/{id}/progress")
+async def update_goal_progress(id: int, data: dict):
+    conn = await get_db_connection()
+    try:
+        progress = data.get("progress", 0)
+        updated_goal = await conn.fetchrow(
+            "UPDATE performance_goals SET progress = $1 WHERE id = $2 RETURNING id, user_id, title, description, target_date, status, progress, created_at",
+            progress, id
         )
         if not updated_goal:
             raise HTTPException(status_code=404, detail="Performance goal not found")
@@ -448,3 +515,16 @@ async def reject_leave(id: int):
         return {"message": "Leave rejected"}
     finally:
         await conn.close()
+
+@router.get("/leaves/balance/{user_id}")
+async def get_leave_balance(user_id: int):
+    """Placeholder for leave balance. Returns dummy data for now."""
+    return {
+        "user_id": user_id,
+        "annual_leave": 15,
+        "sick_leave": 10,
+        "casual_leave": 5,
+        "used_annual": 3,
+        "used_sick": 2,
+        "used_casual": 1
+    }
