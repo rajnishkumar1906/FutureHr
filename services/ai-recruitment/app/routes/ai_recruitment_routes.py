@@ -810,7 +810,8 @@ async def hire_candidate(application_id: int):
                             "first_name":     candidate["first_name"],
                             "last_name":      candidate["last_name"],
                             "date_of_joining": str(__import__('datetime').date.today()),
-                        }
+                        },
+                        headers={"X-Internal-Key": settings.INTERNAL_API_KEY},
                     )
             except Exception as e:
                 print(f"HRMS employee upsert failed (non-fatal): {e}")

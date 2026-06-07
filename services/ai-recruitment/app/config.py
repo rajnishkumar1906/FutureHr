@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Internal service URLs (set to Render URLs in production)
     AUTH_SERVICE_URL: str = "http://localhost:8001"
     HRMS_SERVICE_URL: str = "http://localhost:8002"
+    INTERNAL_API_KEY: str = "futurehr-internal-secret"  # must match hrms INTERNAL_API_KEY
 
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175,https://future-hr.vercel.app,https://future-hr-git-main-rajnishs-projects-52b76523.vercel.app,https://future-hr-rajnishs-projects-52b76523.vercel.app"

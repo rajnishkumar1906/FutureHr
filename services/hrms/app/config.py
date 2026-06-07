@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
+    INTERNAL_API_KEY: str = "futurehr-internal-secret"
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175,https://future-hr.vercel.app,https://future-hr-git-main-rajnishs-projects-52b76523.vercel.app,https://future-hr-rajnishs-projects-52b76523.vercel.app"
 
     model_config = SettingsConfigDict(

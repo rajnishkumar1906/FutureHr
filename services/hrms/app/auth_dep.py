@@ -12,10 +12,14 @@ def _decode(token: str) -> dict:
 
 def get_current_user(request: Request) -> dict:
     """
-    Extract and validate JWT from Authorization header (Bearer) or access_token cookie.
-    Works on both localhost (cookie SameSite=Lax) and cross-origin production
-    (Authorization header sent by the frontend).
+    Validates JWT from Authorization header or cookie.
+    Also accepts X-Internal-Key header for service-to-service calls (e.g. ai-recruitment → hrms).
     """
+    # Service-to-service internal key bypass
+    internal_key = request.headers.get("X-Internal-Key", "")
+    if internal_key and internal_key == settings.INTERNAL_API_KEY:
+        return {"email": "internal-service", "role": "internal", "id": None}
+
     token = None
 
     auth_header = request.headers.get("Authorization", "")
