@@ -71,11 +71,11 @@ export const AppProvider = ({ children }) => {
       setIsAuthenticated(true)
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData))
       addToast('Successfully logged in!', 'success')
-      return true
+      return userData // Return user data so caller can use it immediately
     } catch (error) {
       const errorMsg = formatErrorMessage(error)
       addToast(errorMsg, 'error')
-      return false
+      return null
     } finally {
       setLoading(false)
     }

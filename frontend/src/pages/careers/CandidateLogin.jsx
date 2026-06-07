@@ -36,17 +36,16 @@ const CandidateLogin = () => {
           setConfirmPassword('')
         }
       } else {
-        const success = await login(email, password)
-        if (success) {
-          // Use user from context instead of localStorage!
-          if (user && user.role === 'Candidate') {
-            navigate(redirectTo)
-          } else {
-            // Wrong role — clear state silently, stay on this page to show error
-            await logout(user?.role, { silent: true, redirect: false })
-            addToast('This portal is for candidates only. Staff should use the employee login.', 'error')
-          }
-        }
+                const loggedInUser = await login(email, password)
+                if (loggedInUser) {
+                  if (loggedInUser.role === 'Candidate' || loggedInUser.role === 'Employee') {
+                    navigate(redirectTo)
+                  } else {
+                    // Wrong role — clear state silently, stay on this page to show error
+                    await logout(loggedInUser?.role, { silent: true, redirect: false })
+                    addToast('This portal is for candidates only. Staff should use the employee login.', 'error')
+                  }
+                }
       }
     } catch (err) {
       addToast(err.message || 'Something went wrong', 'error')
