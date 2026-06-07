@@ -100,7 +100,7 @@ async def proxy(request: Request, path: str):
     headers.pop("accept-encoding", None)
 
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
             response = await client.request(
                 method=request.method,
                 url=url,

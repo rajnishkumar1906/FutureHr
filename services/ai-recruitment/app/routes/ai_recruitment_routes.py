@@ -857,13 +857,15 @@ async def sync_candidate_to_employee(candidate_id: int):
         import httpx
         errors = []
 
+        print(f"Sync: AUTH_SERVICE_URL={settings.AUTH_SERVICE_URL}, HRMS_SERVICE_URL={settings.HRMS_SERVICE_URL}")
+
         # 1. Promote in auth service
         auth_user_id = None
         temp_password = None
         try:
             auth_url = f"{settings.AUTH_SERVICE_URL}/api/auth/internal/promote-employee"
             print(f"Sync: Calling auth service at {auth_url}")
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 res = await client.post(
                     auth_url,
                     json={
@@ -872,14 +874,14 @@ async def sync_candidate_to_employee(candidate_id: int):
                         "last_name":  candidate["last_name"],
                     }
                 )
-                print(f"Sync: Auth service response status: {res.status_code}")
+                print(f"Sync: Auth service response status: {res.status_code}, body: {res.text[:200]}")
                 if res.status_code == 200:
                     body = res.json()
                     auth_user_id  = body.get("user_id")
                     temp_password = body.get("temp_password")
                     print(f"Sync: Got auth_user_id: {auth_user_id}")
                 else:
-                    errors.append(f"Auth promote failed: {res.status_code} {res.text}")
+                    errors.append(f"Auth promote failed: {res.status_code} {res.text[:300]}")
         except Exception as e:
             errors.append(f"Auth promote error: {str(e)}")
             print(f"Sync: Auth error: {errors[-1]}")
@@ -889,7 +891,7 @@ async def sync_candidate_to_employee(candidate_id: int):
             try:
                 hrms_url = f"{settings.HRMS_SERVICE_URL}/api/hrms/employees"
                 print(f"Sync: Calling HRMS service at {hrms_url}")
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     res = await client.post(
                         hrms_url,
                         json={
@@ -901,9 +903,9 @@ async def sync_candidate_to_employee(candidate_id: int):
                         },
                         headers={"X-Internal-Key": settings.INTERNAL_API_KEY},
                     )
-                    print(f"Sync: HRMS response status: {res.status_code}")
+                    print(f"Sync: HRMS response status: {res.status_code}, body: {res.text[:200]}")
                     if res.status_code not in (200, 201):
-                        errors.append(f"HRMS upsert failed: {res.status_code} {res.text}")
+                        errors.append(f"HRMS upsert failed: {res.status_code} {res.text[:300]}")
                     else:
                         print("Sync: HRMS upsert successful")
             except Exception as e:
