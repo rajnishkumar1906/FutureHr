@@ -63,18 +63,25 @@ export const AppProvider = ({ children }) => {
   }
 
   const login = async (email, password) => {
+    console.log('AppContext.login: Starting with email:', email)
     setLoading(true)
     try {
+      console.log('AppContext.login: Calling authApi.login...')
       const response = await authApi.login(email, password)
+      console.log('AppContext.login: authApi.login response:', response)
       const userData = response.data.user
+      console.log('AppContext.login: Extracted userData:', userData)
       setUser(userData)
       setIsAuthenticated(true)
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData))
       addToast('Successfully logged in!', 'success')
+      console.log('AppContext.login: Returning userData:', userData)
       return userData // Return user data so caller can use it immediately
     } catch (error) {
+      console.error('AppContext.login: Error:', error)
       const errorMsg = formatErrorMessage(error)
       addToast(errorMsg, 'error')
+      console.log('AppContext.login: Returning null due to error')
       return null
     } finally {
       setLoading(false)
