@@ -350,6 +350,16 @@ async def get_payroll(user_id: int = None):
     finally:
         await conn.close()
 
+@router.get("/payroll/employee/{user_id}", response_model=List[PayrollResponse])
+async def get_payroll_by_employee(user_id: int):
+    """Get payroll records for a specific employee."""
+    conn = await get_db_connection()
+    try:
+        payroll_records = await conn.fetch("SELECT * FROM payroll WHERE user_id = $1 ORDER BY year DESC, month DESC", user_id)
+        return [dict(p) for p in payroll_records]
+    finally:
+        await conn.close()
+
 @router.get("/payroll/{id}", response_model=PayrollResponse)
 async def get_payroll_by_id(id: int):
     conn = await get_db_connection()
