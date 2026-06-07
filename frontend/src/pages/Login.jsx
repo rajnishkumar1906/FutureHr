@@ -66,13 +66,13 @@ const Login = () => {
         success = await login(email, password)
 
         if (success) {
-          const userStr = localStorage.getItem('user')
+          const userStr = localStorage.getItem('futurehr-user')
           if (userStr) {
             const user = JSON.parse(userStr)
 
             if (user.role === 'Management Admin') {
               // Admin must use the dedicated admin login page — clear session and redirect
-              localStorage.removeItem('user')
+              localStorage.removeItem('futurehr-user')
               try { await import('../services/api.js').then(m => m.authApi.logout()) } catch { /* ignore */ }
               addToast('Admin accounts must log in at the Admin portal.', 'error')
               navigate('/admin')
