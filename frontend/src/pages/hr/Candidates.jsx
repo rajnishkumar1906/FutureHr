@@ -7,6 +7,7 @@ const Candidates = () => {
     const [candidates, setCandidates] = useState([])
     const [loading, setLoading] = useState(true)
     const [syncing, setSyncing] = useState(null)
+    const [syncedCandidates, setSyncedCandidates] = useState(new Set())
 
     useEffect(() => {
         fetchCandidates()
@@ -29,6 +30,7 @@ const Candidates = () => {
         setSyncing(candidate.id)
         try {
             await aiRecruitmentApi.syncCandidateToEmployee(candidate.id)
+            setSyncedCandidates(prev => new Set([...prev, candidate.id]))
             addToast(`${candidate.first_name} synced to Employees successfully!`, 'success')
         } catch (err) {
             addToast(err.response?.data?.detail || 'Sync failed', 'error')
@@ -86,16 +88,22 @@ const Candidates = () => {
                                 </td>
                                 <td className="px-6 py-4">
                                     {candidate.status === 'Hired' && (
-                                        <button
-                                            onClick={() => handleSync(candidate)}
-                                            disabled={syncing === candidate.id}
-                                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
-                                        >
-                                            {syncing === candidate.id ? (
-                                                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                                            ) : '🔄'}
-                                            Sync to Employee
-                                        </button>
+                                        syncedCandidates.has(candidate.id) ? (
+                                            <span className="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-semibold rounded-lg flex items-center gap-1">
+                                                ✅ Synced
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleSync(candidate)}
+                                                disabled={syncing === candidate.id}
+                                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                                            >
+                                                {syncing === candidate.id ? (
+                                                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                                                ) : '🔄'}
+                                                Sync to Employee
+                                            </button>
+                                        )
                                     )}
                                 </td>
                             </tr>
