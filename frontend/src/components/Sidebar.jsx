@@ -54,12 +54,12 @@ const Sidebar = () => {
       roles: ['Management Admin', 'HR Recruiter'],
       getPath: (role) => role === 'Management Admin' ? '/admin/attendance' : '/hr/attendance'
     },
-    { 
-      name: 'Payroll', 
-      path: '/hr/payroll', 
-      icon: PayrollIcon, 
-      roles: ['Management Admin', 'HR Recruiter'],
-      getPath: (role) => role === 'Management Admin' ? '/admin/payroll' : '/hr/payroll' 
+    {
+      name: 'Payroll',
+      path: '/admin/payroll',
+      icon: PayrollIcon,
+      roles: ['Management Admin'],
+      getPath: (role) => '/admin/payroll'
     },
     { 
       name: 'Performance', 

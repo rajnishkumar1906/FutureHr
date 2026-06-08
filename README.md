@@ -1,5 +1,7 @@
 # FutureHR - AI Powered Human Resource Management System
 
+🚀 **Live Demo:** [https://future-hr.vercel.app](https://future-hr.vercel.app)
+
 A complete HR management system with AI-powered features for recruitment, built with modern microservices architecture.
 
 ## Features

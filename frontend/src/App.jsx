@@ -55,18 +55,30 @@ const CandidateRoute = ({ children }) => {
   return children
 }
 
+const getRoleHome = (role) => {
+  switch (role) {
+    case 'Management Admin': return '/admin/dashboard'
+    case 'HR Recruiter':     return '/hr/dashboard'
+    case 'Senior Manager':   return '/manager/dashboard'
+    case 'Employee':         return '/employee/dashboard'
+    default:                 return '/login'
+  }
+}
+
+const RoleRoute = ({ allowedRoles, children }) => {
+  const { user } = useAppContext()
+  if (!allowedRoles.includes(user?.role)) {
+    return <Navigate to={getRoleHome(user?.role)} replace />
+  }
+  return children
+}
+
 const App = () => {
   const { isAuthenticated, user, toasts, removeToast, sidebarCollapsed } = useAppContext()
 
   const getRoleBasedHomePath = () => {
-    switch (user?.role) {
-      case 'Management Admin': return '/admin/dashboard'
-      case 'HR Recruiter':     return '/hr/dashboard'
-      case 'Senior Manager':   return '/manager/dashboard'
-      case 'Employee':         return '/employee/dashboard'
-      case 'Candidate':        return '/careers/status'
-      default:                 return '/login'
-    }
+    if (user?.role === 'Candidate') return '/careers/status'
+    return getRoleHome(user?.role)
   }
 
   // Staff roles that use the main app shell
@@ -129,35 +141,34 @@ const App = () => {
                   <Route path="/manager/dashboard"  element={<Dashboard />} />
                   <Route path="/employee/dashboard" element={<Dashboard />} />
 
-                  {/* Admin */}
-                  <Route path="/admin/employees"   element={<Employees />} />
-                  <Route path="/admin/departments" element={<Departments />} />
-                  <Route path="/admin/attendance"  element={<Attendance />} />
-                  <Route path="/admin/payroll"     element={<Payroll />} />
-                  <Route path="/admin/performance" element={<Performance />} />
-                  <Route path="/admin/recruitment" element={<RecruitmentAnalytics />} />
-                  <Route path="/admin/settings"   element={<AdminSettings />} />
+                  {/* Admin only */}
+                  <Route path="/admin/employees"   element={<RoleRoute allowedRoles={['Management Admin']}><Employees /></RoleRoute>} />
+                  <Route path="/admin/departments" element={<RoleRoute allowedRoles={['Management Admin']}><Departments /></RoleRoute>} />
+                  <Route path="/admin/attendance"  element={<RoleRoute allowedRoles={['Management Admin']}><Attendance /></RoleRoute>} />
+                  <Route path="/admin/payroll"     element={<RoleRoute allowedRoles={['Management Admin']}><Payroll /></RoleRoute>} />
+                  <Route path="/admin/performance" element={<RoleRoute allowedRoles={['Management Admin']}><Performance /></RoleRoute>} />
+                  <Route path="/admin/recruitment" element={<RoleRoute allowedRoles={['Management Admin']}><RecruitmentAnalytics /></RoleRoute>} />
+                  <Route path="/admin/settings"    element={<RoleRoute allowedRoles={['Management Admin']}><AdminSettings /></RoleRoute>} />
 
-                  {/* HR */}
-                  <Route path="/hr/candidates"       element={<Candidates />} />
-                  <Route path="/hr/jobs"             element={<Jobs />} />
-                  <Route path="/hr/resume-screening" element={<ResumeScreening />} />
-                  <Route path="/hr/voice-screening"  element={<VoiceScreening />} />
-                  <Route path="/hr/employees"        element={<Employees />} />
-                  <Route path="/hr/attendance"       element={<Attendance />} />
-                  <Route path="/hr/payroll"          element={<Payroll />} />
-                  <Route path="/hr/performance"      element={<Performance />} />
+                  {/* HR only */}
+                  <Route path="/hr/candidates"       element={<RoleRoute allowedRoles={['HR Recruiter']}><Candidates /></RoleRoute>} />
+                  <Route path="/hr/jobs"             element={<RoleRoute allowedRoles={['HR Recruiter']}><Jobs /></RoleRoute>} />
+                  <Route path="/hr/resume-screening" element={<RoleRoute allowedRoles={['HR Recruiter']}><ResumeScreening /></RoleRoute>} />
+                  <Route path="/hr/voice-screening"  element={<RoleRoute allowedRoles={['HR Recruiter']}><VoiceScreening /></RoleRoute>} />
+                  <Route path="/hr/employees"        element={<RoleRoute allowedRoles={['HR Recruiter']}><Employees /></RoleRoute>} />
+                  <Route path="/hr/attendance"       element={<RoleRoute allowedRoles={['HR Recruiter']}><Attendance /></RoleRoute>} />
+                  <Route path="/hr/performance"      element={<RoleRoute allowedRoles={['HR Recruiter']}><Performance /></RoleRoute>} />
 
-                  {/* Manager */}
-                  <Route path="/manager/team"        element={<MyTeam />} />
-                  <Route path="/manager/leaves"      element={<LeaveRequests />} />
-                  <Route path="/manager/performance" element={<TeamPerformance />} />
+                  {/* Manager only */}
+                  <Route path="/manager/team"        element={<RoleRoute allowedRoles={['Senior Manager']}><MyTeam /></RoleRoute>} />
+                  <Route path="/manager/leaves"      element={<RoleRoute allowedRoles={['Senior Manager']}><LeaveRequests /></RoleRoute>} />
+                  <Route path="/manager/performance" element={<RoleRoute allowedRoles={['Senior Manager']}><TeamPerformance /></RoleRoute>} />
 
-                  {/* Employee */}
-                  <Route path="/employee/attendance" element={<EmployeeAttendance />} />
-                  <Route path="/employee/payroll"    element={<EmployeePayroll />} />
-                  <Route path="/employee/goals"      element={<EmployeeGoals />} />
-                  <Route path="/employee/leave"      element={<EmployeeLeaveRequest />} />
+                  {/* Employee only */}
+                  <Route path="/employee/attendance" element={<RoleRoute allowedRoles={['Employee']}><EmployeeAttendance /></RoleRoute>} />
+                  <Route path="/employee/payroll"    element={<RoleRoute allowedRoles={['Employee']}><EmployeePayroll /></RoleRoute>} />
+                  <Route path="/employee/goals"      element={<RoleRoute allowedRoles={['Employee']}><EmployeeGoals /></RoleRoute>} />
+                  <Route path="/employee/leave"      element={<RoleRoute allowedRoles={['Employee']}><EmployeeLeaveRequest /></RoleRoute>} />
 
                   <Route path="/"  element={<Navigate to={getRoleBasedHomePath()} replace />} />
                   <Route path="*"  element={<Navigate to={getRoleBasedHomePath()} replace />} />
