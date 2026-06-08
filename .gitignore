@@ -41,3 +41,7 @@ Thumbs.db
 # ── Logs ──────────────────────────────────────────────
 *.log
 logs/
+main.py
+items.csv
+main.py
+items.csv
