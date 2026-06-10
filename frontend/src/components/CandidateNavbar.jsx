@@ -22,6 +22,7 @@ const CandidateNavbar = () => {
       : 'text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400'
 
   return (
+    <>
     <nav className="sticky top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         {/* Logo */}
@@ -100,9 +101,11 @@ const CandidateNavbar = () => {
         </div>
       )}
 
-      {/* Logout confirmation modal */}
+    </nav>
+
+      {/* Logout confirmation modal — outside <nav> so it isn't clipped by sticky stacking context */}
       {showLogoutModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] px-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex flex-col items-center text-center gap-3">
               <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-2xl">
@@ -130,7 +133,7 @@ const CandidateNavbar = () => {
           </div>
         </div>
       )}
-    </nav>
+    </>
   )
 }
 
