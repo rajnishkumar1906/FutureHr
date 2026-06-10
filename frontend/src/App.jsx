@@ -22,11 +22,13 @@ import Candidates from './pages/hr/Candidates.jsx'
 import Jobs from './pages/hr/Jobs.jsx'
 import ResumeScreening from './pages/hr/ResumeScreening.jsx'
 import VoiceScreening from './pages/hr/VoiceScreening.jsx'
+import HRPayroll from './pages/hr/HRPayroll.jsx'
 
 // Manager pages
 import MyTeam from './pages/manager/MyTeam.jsx'
 import LeaveRequests from './pages/manager/LeaveRequests.jsx'
 import TeamPerformance from './pages/manager/TeamPerformance.jsx'
+import ManagerPayroll from './pages/manager/ManagerPayroll.jsx'
 
 // Employee pages
 import EmployeeAttendance from './pages/employee/EmployeeAttendance.jsx'
@@ -158,11 +160,13 @@ const App = () => {
                   <Route path="/hr/employees"        element={<RoleRoute allowedRoles={['HR Recruiter']}><Employees /></RoleRoute>} />
                   <Route path="/hr/attendance"       element={<RoleRoute allowedRoles={['HR Recruiter']}><Attendance /></RoleRoute>} />
                   <Route path="/hr/performance"      element={<RoleRoute allowedRoles={['HR Recruiter']}><Performance /></RoleRoute>} />
+                  <Route path="/hr/payroll"          element={<RoleRoute allowedRoles={['HR Recruiter']}><HRPayroll /></RoleRoute>} />
 
                   {/* Manager only */}
                   <Route path="/manager/team"        element={<RoleRoute allowedRoles={['Senior Manager']}><MyTeam /></RoleRoute>} />
                   <Route path="/manager/leaves"      element={<RoleRoute allowedRoles={['Senior Manager']}><LeaveRequests /></RoleRoute>} />
                   <Route path="/manager/performance" element={<RoleRoute allowedRoles={['Senior Manager']}><TeamPerformance /></RoleRoute>} />
+                  <Route path="/manager/payroll"     element={<RoleRoute allowedRoles={['Senior Manager']}><ManagerPayroll /></RoleRoute>} />
 
                   {/* Employee only */}
                   <Route path="/employee/attendance" element={<RoleRoute allowedRoles={['Employee']}><EmployeeAttendance /></RoleRoute>} />

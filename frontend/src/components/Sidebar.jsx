@@ -58,8 +58,15 @@ const Sidebar = () => {
       name: 'Payroll',
       path: '/admin/payroll',
       icon: PayrollIcon,
-      roles: ['Management Admin'],
-      getPath: (role) => '/admin/payroll'
+      roles: ['Management Admin', 'HR Recruiter'],
+      getPath: (role) => role === 'HR Recruiter' ? '/hr/payroll' : '/admin/payroll'
+    },
+    {
+      name: 'Payroll',
+      path: '/manager/payroll',
+      icon: PayrollIcon,
+      roles: ['Senior Manager'],
+      getPath: () => '/manager/payroll'
     },
     { 
       name: 'Performance', 
@@ -109,12 +116,12 @@ const Sidebar = () => {
         </div>
         <nav className="flex-1 overflow-y-auto p-4 pt-6">
           <ul className="space-y-1.5">
-            {links.map((link) => {
+            {links.map((link, idx) => {
               const actualPath = link.getPath ? link.getPath(user?.role) : link.path;
               const active = isActive(actualPath)
               const Icon = link.icon
               return (
-                <li key={link.name}>
+                <li key={`${link.name}-${idx}`}>
                   <Link
                     to={actualPath}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${

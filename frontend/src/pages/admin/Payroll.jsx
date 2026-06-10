@@ -17,6 +17,10 @@ const Payroll = () => {
     deductions: 0,
     user_id: null
   })
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchPayroll() }, [])
 
@@ -30,6 +34,34 @@ const Payroll = () => {
       setPayroll([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const openEdit = (item) => {
+    setEditItem(item)
+    setEditForm({
+      user_id: item.user_id,
+      month: item.month,
+      year: item.year,
+      basic_salary: item.basic_salary,
+      allowances: item.allowances,
+      deductions: item.deductions,
+      status: item.status,
+    })
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    setSaving(true)
+    try {
+      await hrmsApi.updatePayroll(editItem.id, editForm)
+      addToast('Payroll updated successfully!', 'success')
+      setShowEditModal(false)
+      fetchPayroll()
+    } catch {
+      addToast('Failed to update payroll', 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -90,7 +122,7 @@ const Payroll = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Payroll</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage employee payroll and salaries</p>
         </div>
-        {user?.role === "Management Admin" && (
+        {(user?.role === "Management Admin" || user?.role === "HR Recruiter") && (
           <button
             onClick={() => setShowGenerateModal(true)}
             className="mt-4 md:mt-0 px-6 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:from-indigo-600 hover:to-indigo-700 transition-all"
@@ -186,6 +218,67 @@ const Payroll = () => {
         </div>
       )}
 
+      {/* Edit Payroll Modal — Management Admin only */}
+      {showEditModal && editItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Payroll</h2>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Month</label>
+                  <select value={editForm.month} onChange={e => setEditForm({ ...editForm, month: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                    {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Year</label>
+                  <input type="number" value={editForm.year} onChange={e => setEditForm({ ...editForm, year: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Basic Salary</label>
+                <input type="number" value={editForm.basic_salary} onChange={e => setEditForm({ ...editForm, basic_salary: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Allowances</label>
+                <input type="number" value={editForm.allowances} onChange={e => setEditForm({ ...editForm, allowances: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deductions</label>
+                <input type="number" value={editForm.deductions} onChange={e => setEditForm({ ...editForm, deductions: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                </select>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                  Cancel
+                </button>
+                <button onClick={handleSaveEdit} disabled={saving}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-indigo-700 disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {payroll.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="text-7xl mb-4">💰</div>
@@ -257,7 +350,7 @@ const Payroll = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    {['Employee ID', 'Period', 'Basic Salary', 'Allowances', 'Deductions', 'Net Salary', 'Status'].map(h => (
+                    {['Employee ID', 'Period', 'Basic Salary', 'Allowances', 'Deductions', 'Net Salary', 'Status', ...(user?.role === 'Management Admin' ? ['Actions'] : [])].map(h => (
                       <th key={h} className="px-6 py-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">{h}</th>
                     ))}
                   </tr>
@@ -276,6 +369,14 @@ const Payroll = () => {
                           {item.status}
                         </span>
                       </td>
+                      {user?.role === 'Management Admin' && (
+                        <td className="px-6 py-4">
+                          <button onClick={() => openEdit(item)}
+                            className="px-3 py-1.5 text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors">
+                            Edit
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

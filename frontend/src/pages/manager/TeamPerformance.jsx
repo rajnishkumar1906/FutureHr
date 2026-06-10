@@ -9,15 +9,43 @@ import { useAppContext } from '../../contexts/AppContext.jsx'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const TeamPerformance = () => {
-  const { user } = useAppContext()
+  const { user, addToast } = useAppContext()
   const [loading, setLoading] = useState(true)
   const [members, setMembers] = useState([])
   const [memberGoals, setMemberGoals] = useState({}) // { userId: goals[] }
   const [monthlyAttendance, setMonthlyAttendance] = useState([]) // [{month, present, total}]
+  const [showGoalModal, setShowGoalModal] = useState(false)
+  const [goalForm, setGoalForm] = useState({ user_id: '', title: '', description: '', target_date: '' })
+  const [savingGoal, setSavingGoal] = useState(false)
+  const [expandedMember, setExpandedMember] = useState(null)
 
   useEffect(() => {
     if (user?.id) fetchAll()
   }, [user?.id])
+
+  const handleAssignGoal = async (e) => {
+    e.preventDefault()
+    if (!goalForm.user_id) { addToast('Please select an employee', 'error'); return }
+    setSavingGoal(true)
+    try {
+      await hrmsApi.createPerformanceGoal({
+        user_id: Number(goalForm.user_id),
+        title: goalForm.title,
+        description: goalForm.description,
+        target_date: goalForm.target_date || null,
+        status: 'Not Started',
+        progress: 0,
+      })
+      addToast('Goal assigned to employee!', 'success')
+      setShowGoalModal(false)
+      setGoalForm({ user_id: '', title: '', description: '', target_date: '' })
+      fetchAll()
+    } catch (err) {
+      addToast(err?.response?.data?.detail || 'Failed to assign goal', 'error')
+    } finally {
+      setSavingGoal(false)
+    }
+  }
 
   const fetchAll = async () => {
     setLoading(true)
@@ -138,10 +166,71 @@ const TeamPerformance = () => {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Team Performance</h1>
-        <p className="text-gray-600 dark:text-gray-400">Track team metrics, goals, and KPIs</p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Team Performance</h1>
+          <p className="text-gray-600 dark:text-gray-400">Track team metrics, goals, and KPIs</p>
+        </div>
+        <button
+          onClick={() => setShowGoalModal(true)}
+          className="mt-4 md:mt-0 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:from-indigo-600 hover:to-indigo-700 transition-all"
+        >
+          + Assign Goal
+        </button>
       </div>
+
+      {/* Assign Goal Modal */}
+      {showGoalModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Assign Goal to Employee</h2>
+              <button onClick={() => setShowGoalModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleAssignGoal} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee <span className="text-red-500">*</span></label>
+                <select required value={goalForm.user_id} onChange={e => setGoalForm(f => ({ ...f, user_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                  <option value="">Select employee...</option>
+                  {members.map(m => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {`${m.first_name || ''} ${m.last_name || ''}`.trim() || `Employee #${m.user_id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Goal Title <span className="text-red-500">*</span></label>
+                <input required type="text" value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Complete Q3 targets"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea rows={3} value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Details about this goal..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Date</label>
+                <input type="date" value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowGoalModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                  Cancel
+                </button>
+                <button type="submit" disabled={savingGoal}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-indigo-700 disabled:opacity-50">
+                  {savingGoal ? 'Assigning...' : 'Assign Goal'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
@@ -195,36 +284,80 @@ const TeamPerformance = () => {
         </div>
       </div>
 
-      {/* Performance summary list */}
+      {/* Performance summary list with expandable goals */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border">
         <h2 className="text-lg font-semibold mb-6">Performance Summary</h2>
-        <div className="space-y-4">
-          {memberStats.map((m, idx) => (
-            <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
-                  {m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-semibold">{m.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {m.goalCompletion != null ? `${m.goalCompletion}% goal avg` : 'No goals set'}
-                  </p>
-                </div>
+        <div className="space-y-3">
+          {memberStats.map((m, idx) => {
+            const memberId = members[idx]?.user_id
+            const goals = memberGoals[memberId] || []
+            const isExpanded = expandedMember === memberId
+            return (
+              <div key={idx} className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedMember(isExpanded ? null : memberId)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      {m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">{m.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {goals.length} goal{goals.length !== 1 ? 's' : ''} · {m.goalCompletion != null ? `${m.goalCompletion}% avg` : 'No goals'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="hidden sm:flex items-center gap-3">
+                      <div className="w-28 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                        <div className="bg-indigo-600 h-2 rounded-full transition-all" style={{ width: m.performance != null ? `${m.performance}%` : '0%' }} />
+                      </div>
+                      <span className="text-sm font-semibold text-indigo-600 w-10 text-right">
+                        {m.performance != null ? `${m.performance}%` : '—'}
+                      </span>
+                    </div>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-3">
+                    {goals.length === 0 ? (
+                      <div className="text-center py-6 text-gray-400">
+                        <p className="text-sm">No goals assigned yet.</p>
+                        <button onClick={() => { setGoalForm(f => ({ ...f, user_id: String(memberId) })); setShowGoalModal(true) }}
+                          className="mt-2 text-xs text-indigo-600 hover:underline">Assign a goal</button>
+                      </div>
+                    ) : (
+                      goals.map(goal => (
+                        <div key={goal.id} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-medium text-sm text-gray-900 dark:text-white">{goal.title}</p>
+                              {goal.description && <p className="text-xs text-gray-500 mt-0.5">{goal.description}</p>}
+                              {goal.target_date && <p className="text-xs text-gray-400 mt-0.5">Due: {new Date(goal.target_date).toLocaleDateString()}</p>}
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${goal.status === 'Completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : goal.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
+                              {goal.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                              <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${goal.progress || 0}%` }} />
+                            </div>
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{goal.progress || 0}%</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-4">
-                <div className="w-36 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full transition-all"
-                    style={{ width: m.performance != null ? `${m.performance}%` : '0%' }}
-                  />
-                </div>
-                <span className="text-sm font-semibold text-indigo-600 w-12 text-right">
-                  {m.performance != null ? `${m.performance}%` : '—'}
-                </span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

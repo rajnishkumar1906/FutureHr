@@ -91,6 +91,7 @@ export const hrmsApi = {
   markAttendance: (data) => apiClient.post('/api/hrms/attendance', data),
   updateAttendance: (id, data) => apiClient.put(`/api/hrms/attendance/${id}`, data),
   getAttendanceSummary: (employeeId, month, year) => apiClient.get(`/api/hrms/attendance/summary/${employeeId}`, { params: { month, year } }),
+  createPayroll: (data) => apiClient.post('/api/hrms/payroll', data),
   getPayroll: (params) => apiClient.get('/api/hrms/payroll', { params }),
   getPayrollByEmployee: (employeeId) => apiClient.get(`/api/hrms/payroll/employee/${employeeId}`),
   generatePayroll: (data) => apiClient.post('/api/hrms/payroll/generate', data),
@@ -161,6 +162,7 @@ export const aiRecruitmentApi = {
 
   // ==================== VOICE SCREENING INVITE ====================
   sendVoiceInvite: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/send-voice-invite`),
+  rescreenResume: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/rescreen`),
   
   // ==================== VALIDATE VOICE CODE ====================
   validateVoiceCode: (code) => apiClient.get(`/api/ai-recruitment/voice-screening/validate/${code}`),

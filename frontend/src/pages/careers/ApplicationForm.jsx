@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAppContext } from '../../contexts/AppContext.jsx'
 import { aiRecruitmentApi } from '../../services/api.js'
@@ -11,9 +11,27 @@ const ApplicationForm = () => {
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', resume: null, coverLetter: '', experience: '', portfolio: '' })
+  const [resumeError, setResumeError] = useState('')
+  const fileInputRef = useRef(null)
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
-  const handleFileChange = (e) => setFormData({ ...formData, resume: e.target.files[0] })
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setResumeError('Only PDF files are supported. Please upload a .pdf file.')
+      e.target.value = ''
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setResumeError('File is too large. Maximum size is 5 MB.')
+      e.target.value = ''
+      return
+    }
+    setResumeError('')
+    setFormData({ ...formData, resume: file })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -137,15 +155,52 @@ const ApplicationForm = () => {
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold">Resume & Cover Letter</h2>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Upload Resume * (PDF, DOC)</label>
-                  <input 
-                    type="file" 
-                    accept=".pdf,.doc,.docx" 
-                    required 
-                    onChange={handleFileChange} 
-                    className="w-full px-4 py-3 border rounded-lg" 
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Max file size: 5MB</p>
+                  <label className="block text-sm font-medium mb-2">
+                    Upload Resume <span className="text-red-500">*</span>
+                    <span className="ml-1 text-xs font-normal text-gray-400">(PDF only)</span>
+                  </label>
+                  <div
+                    className={`relative border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors
+                      ${formData.resume
+                        ? 'border-green-400 bg-green-50 dark:bg-green-900/10'
+                        : 'border-gray-300 hover:border-indigo-400 bg-gray-50 dark:bg-gray-700'
+                      }`}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      required
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    {formData.resume ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="text-2xl">📄</span>
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-green-700 dark:text-green-400">{formData.resume.name}</p>
+                          <p className="text-xs text-gray-500">{(formData.resume.size / 1024).toFixed(0)} KB · PDF ready to upload</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setFormData({ ...formData, resume: null }); setResumeError('') }}
+                          className="ml-2 text-gray-400 hover:text-red-500 text-lg"
+                        >×</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-2xl mb-1">📤</p>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Click to upload your resume</p>
+                        <p className="text-xs text-gray-400 mt-1">PDF only · Max 5 MB</p>
+                      </div>
+                    )}
+                  </div>
+                  {resumeError && (
+                    <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                      <span>⚠</span> {resumeError}
+                    </p>
+                  )}
                 </div>
                 <textarea 
                   name="coverLetter" 
@@ -184,12 +239,22 @@ const ApplicationForm = () => {
             {step === 3 && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold">Review Application</h2>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                  <p><strong>Name:</strong> {formData.firstName} {formData.lastName}</p>
-                  <p><strong>Email:</strong> {formData.email}</p>
-                  <p><strong>Phone:</strong> {formData.phone}</p>
-                  <p><strong>Experience:</strong> {formData.experience || 'Not specified'}</p>
-                  {formData.portfolio && <p><strong>Portfolio:</strong> {formData.portfolio}</p>}
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5 space-y-2 text-sm">
+                  <p><span className="font-semibold text-gray-600 dark:text-gray-400">Name:</span> {formData.firstName} {formData.lastName}</p>
+                  <p><span className="font-semibold text-gray-600 dark:text-gray-400">Email:</span> {formData.email}</p>
+                  <p><span className="font-semibold text-gray-600 dark:text-gray-400">Phone:</span> {formData.phone}</p>
+                  <p><span className="font-semibold text-gray-600 dark:text-gray-400">Experience:</span> {formData.experience || 'Not specified'}</p>
+                  {formData.portfolio && <p><span className="font-semibold text-gray-600 dark:text-gray-400">Portfolio:</span> {formData.portfolio}</p>}
+                  <div className="pt-1">
+                    {formData.resume ? (
+                      <p className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
+                        <span>📄</span> {formData.resume.name}
+                        <span className="text-xs text-gray-400 font-normal">({(formData.resume.size / 1024).toFixed(0)} KB)</span>
+                      </p>
+                    ) : (
+                      <p className="text-red-500 text-xs">⚠ No resume attached — go back to Step 2</p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-4">
                   <button 

@@ -322,11 +322,11 @@ async def get_attendance_summary(user_id: int, month: int = None, year: int = No
 # Payroll Routes
 @router.post("/payroll", response_model=PayrollResponse, status_code=status.HTTP_201_CREATED)
 async def create_payroll(payroll: PayrollCreate, current_user: dict = Depends(get_current_user)):
-    """Only Management Admin can create payroll manually"""
-    if current_user["role"] != "Management Admin":
+    """Management Admin and HR Recruiter can create payroll"""
+    if current_user["role"] not in ("Management Admin", "HR Recruiter"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Management Admin can create payroll"
+            detail="Only Management Admin or HR Recruiter can create payroll"
         )
     
     conn = await get_db_connection()
@@ -368,11 +368,11 @@ async def get_payroll(user_id: int = None, current_user: dict = Depends(get_curr
 
 @router.post("/payroll/generate")
 async def generate_payroll(data: dict, current_user: dict = Depends(get_current_user)):
-    """Only Management Admin can generate payroll"""
-    if current_user["role"] != "Management Admin":
+    """Management Admin and HR Recruiter can generate payroll"""
+    if current_user["role"] not in ("Management Admin", "HR Recruiter"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Management Admin can generate payroll"
+            detail="Only Management Admin or HR Recruiter can generate payroll"
         )
     
     user_id = data.get("user_id")
@@ -530,7 +530,11 @@ async def download_payslip(id: int):
 
 # Performance Goals Routes
 @router.post("/performance-goals", response_model=PerformanceGoalResponse, status_code=status.HTTP_201_CREATED)
-async def create_performance_goal(goal: PerformanceGoalCreate):
+async def create_performance_goal(goal: PerformanceGoalCreate, current_user: dict = Depends(get_current_user)):
+    """Management Admin, HR Recruiter, Senior Manager, and Employee can create goals.
+    Employees can only create goals for themselves."""
+    if current_user["role"] == "Employee" and goal.user_id != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Employees can only create goals for themselves")
     conn = await get_db_connection()
     try:
         new_goal = await conn.fetchrow(
@@ -546,10 +550,13 @@ async def create_performance_goal(goal: PerformanceGoalCreate):
         await conn.close()
 
 @router.get("/performance-goals", response_model=List[PerformanceGoalResponse])
-async def get_performance_goals(user_id: int = None):
+async def get_performance_goals(user_id: int = None, current_user: dict = Depends(get_current_user)):
+    """Employees can only see their own goals. Others can filter or see all."""
     conn = await get_db_connection()
     try:
-        if user_id:
+        if current_user["role"] == "Employee":
+            goals = await conn.fetch("SELECT * FROM performance_goals WHERE user_id = $1", current_user["id"])
+        elif user_id:
             goals = await conn.fetch("SELECT * FROM performance_goals WHERE user_id = $1", user_id)
         else:
             goals = await conn.fetch("SELECT * FROM performance_goals")
@@ -558,43 +565,54 @@ async def get_performance_goals(user_id: int = None):
         await conn.close()
 
 @router.put("/performance-goals/{id}", response_model=PerformanceGoalResponse)
-async def update_performance_goal(id: int, goal: PerformanceGoalCreate):
+async def update_performance_goal(id: int, goal: PerformanceGoalCreate, current_user: dict = Depends(get_current_user)):
     conn = await get_db_connection()
     try:
+        existing = await conn.fetchrow("SELECT user_id FROM performance_goals WHERE id = $1", id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Performance goal not found")
+        if current_user["role"] == "Employee" and existing["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own goals")
         updated_goal = await conn.fetchrow(
             """
-            UPDATE performance_goals 
+            UPDATE performance_goals
             SET user_id = $1, title = $2, description = $3, target_date = $4, status = $5, progress = $6
             WHERE id = $7
             RETURNING id, user_id, title, description, target_date, status, progress, created_at
             """,
             goal.user_id, goal.title, goal.description, goal.target_date, goal.status, goal.progress, id
         )
-        if not updated_goal:
-            raise HTTPException(status_code=404, detail="Performance goal not found")
         return dict(updated_goal)
     finally:
         await conn.close()
 
 @router.delete("/performance-goals/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_performance_goal(id: int):
+async def delete_performance_goal(id: int, current_user: dict = Depends(get_current_user)):
     conn = await get_db_connection()
     try:
+        existing = await conn.fetchrow("SELECT user_id FROM performance_goals WHERE id = $1", id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Performance goal not found")
+        if current_user["role"] == "Employee" and existing["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own goals")
         await conn.execute("DELETE FROM performance_goals WHERE id = $1", id)
     finally:
         await conn.close()
 
 @router.patch("/performance-goals/{id}/progress")
-async def update_goal_progress(id: int, data: dict):
+async def update_goal_progress(id: int, data: dict, current_user: dict = Depends(get_current_user)):
     conn = await get_db_connection()
     try:
+        existing = await conn.fetchrow("SELECT user_id FROM performance_goals WHERE id = $1", id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Performance goal not found")
+        if current_user["role"] == "Employee" and existing["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update progress on your own goals")
         progress = data.get("progress", 0)
         updated_goal = await conn.fetchrow(
             "UPDATE performance_goals SET progress = $1 WHERE id = $2 RETURNING id, user_id, title, description, target_date, status, progress, created_at",
             progress, id
         )
-        if not updated_goal:
-            raise HTTPException(status_code=404, detail="Performance goal not found")
         return dict(updated_goal)
     finally:
         await conn.close()

@@ -24,6 +24,16 @@ const ResumeScreening = () => {
         }
     }
 
+    const handleRescreen = async () => {
+        try {
+            await aiRecruitmentApi.rescreenResume(selectedScreening.application_id)
+            addToast('Re-screening started — refresh in a few seconds to see updated scores.', 'info')
+            setSelectedScreening(null)
+        } catch (err) {
+            addToast(err.response?.data?.detail || 'Failed to start re-screening', 'error')
+        }
+    }
+
     const handleApproveForVoiceScreening = async () => {
         try {
             await aiRecruitmentApi.updateApplicationStatus(selectedScreening.application_id, 'Voice Screening Required')
@@ -152,24 +162,50 @@ const ResumeScreening = () => {
                                 ))}
                             </div>
 
+                            {/* Education */}
+                            {item.extracted_education && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
+                                    <span>🎓</span> {item.extracted_education}
+                                </p>
+                            )}
+
                             {/* Top skills preview */}
                             {item.top_skills?.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                    {item.top_skills.slice(0, 4).map((sk, i) => (
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {item.top_skills.slice(0, 5).map((sk, i) => (
                                         <span key={i} className="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full font-medium">
                                             {typeof sk === 'object' ? sk.name : sk}
                                             {typeof sk === 'object' && sk.score != null && (
-                                                <span className="ml-1 opacity-70">{sk.score}</span>
+                                                <span className="ml-1 opacity-60">{sk.score}%</span>
                                             )}
                                         </span>
                                     ))}
-                                    {item.top_skills.length > 4 && (
-                                        <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full">+{item.top_skills.length - 4}</span>
+                                    {item.top_skills.length > 5 && (
+                                        <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-full">+{item.top_skills.length - 5}</span>
                                     )}
                                 </div>
                             )}
 
-                            {item.summary && (
+                            {/* Projects preview */}
+                            {item.extracted_projects?.length > 0 && (
+                                <div className="mb-2 space-y-0.5">
+                                    {item.extracted_projects.slice(0, 2).map((p, i) => {
+                                        const name = typeof p === 'object' ? p.name : p
+                                        const desc = typeof p === 'object' ? p.description : null
+                                        return (
+                                            <p key={i} className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                <span className="text-indigo-500 font-bold">▸</span> <span className="font-medium text-gray-700 dark:text-gray-300">{name}</span>
+                                                {desc && <span className="text-gray-400"> — {desc}</span>}
+                                            </p>
+                                        )
+                                    })}
+                                    {item.extracted_projects.length > 2 && (
+                                        <p className="text-xs text-gray-400">+{item.extracted_projects.length - 2} more projects</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {item.summary && !item.extracted_projects?.length && (
                                 <p className="text-gray-500 text-xs line-clamp-2 leading-relaxed">{item.summary}</p>
                             )}
                         </div>
@@ -234,72 +270,109 @@ const ResumeScreening = () => {
                                 ))}
                             </div>
 
-                            {/* Top 5 Skills with scores */}
-                            {selectedScreening.top_skills?.length > 0 && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Top Skills (AI-scored)</h4>
-                                    <div className="space-y-2.5">
-                                        {selectedScreening.top_skills.map((sk, i) => {
-                                            const name  = typeof sk === 'object' ? sk.name  : sk
-                                            const score = typeof sk === 'object' ? sk.score : null
-                                            return (
-                                                <div key={i}>
-                                                    <div className="flex justify-between text-sm mb-1">
-                                                        <span className="font-medium text-gray-800 dark:text-gray-200">{name}</span>
-                                                        {score != null && (
-                                                            <span className={`font-bold ${scoreColor(score)}`}>{score}/100</span>
-                                                        )}
-                                                    </div>
-                                                    {score != null && (
-                                                        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={`h-full ${barColor(score)} rounded-full transition-all`}
-                                                                style={{ width: `${score}%` }}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
+                            {/* ── Candidate Profile ── */}
+                            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                                <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
+                                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Candidate Profile</h4>
                                 </div>
-                            )}
+                                <div className="p-4 space-y-4">
 
-                            {/* All extracted skills */}
-                            {selectedScreening.extracted_skills?.length > 0 && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">All Extracted Skills</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedScreening.extracted_skills.map((sk, i) => (
-                                            <span key={i} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium border border-blue-100 dark:border-blue-800">
-                                                {typeof sk === 'object' ? sk.name : sk}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Projects */}
-                            {selectedScreening.extracted_projects?.length > 0 && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Projects</h4>
-                                    <div className="space-y-2">
-                                        {selectedScreening.extracted_projects.map((p, i) => {
-                                            const name = typeof p === 'object' ? p.name : p
-                                            const desc = typeof p === 'object' ? p.description : null
-                                            return (
-                                                <div key={i} className="flex gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                                    <span className="text-indigo-400 mt-0.5 flex-shrink-0">▸</span>
+                                    {/* Education & Certifications */}
+                                    {(selectedScreening.extracted_education || selectedScreening.extracted_certifications) && (
+                                        <div className="flex flex-wrap gap-4">
+                                            {selectedScreening.extracted_education && (
+                                                <div className="flex items-start gap-2 min-w-0">
+                                                    <span className="text-lg mt-0.5">🎓</span>
                                                     <div>
-                                                        <span className="font-semibold text-sm text-indigo-800 dark:text-indigo-200">{name}</span>
-                                                        {desc && <span className="text-sm text-gray-600 dark:text-gray-400"> — {desc}</span>}
+                                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Education</p>
+                                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{selectedScreening.extracted_education}</p>
                                                     </div>
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
+                                            )}
+                                            {selectedScreening.extracted_certifications && selectedScreening.extracted_certifications.trim() && selectedScreening.extracted_certifications !== 'empty string' && (
+                                                <div className="flex items-start gap-2 min-w-0">
+                                                    <span className="text-lg mt-0.5">🏅</span>
+                                                    <div>
+                                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Certifications</p>
+                                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{selectedScreening.extracted_certifications}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Top Skills with scores */}
+                                    {selectedScreening.top_skills?.length > 0 && (
+                                        <div>
+                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-2">Top Skills</p>
+                                            <div className="space-y-2">
+                                                {selectedScreening.top_skills.map((sk, i) => {
+                                                    const name  = typeof sk === 'object' ? sk.name  : sk
+                                                    const score = typeof sk === 'object' ? sk.score : null
+                                                    return (
+                                                        <div key={i} className="flex items-center gap-3">
+                                                            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 w-32 truncate">{name}</span>
+                                                            <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${barColor(score ?? 50)} rounded-full`} style={{ width: `${score ?? 50}%` }} />
+                                                            </div>
+                                                            {score != null && (
+                                                                <span className={`text-xs font-bold w-10 text-right ${scoreColor(score)}`}>{score}%</span>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* All extracted skills as tags */}
+                                    {selectedScreening.extracted_skills?.length > 0 && (
+                                        <div>
+                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-2">All Skills</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedScreening.extracted_skills.map((sk, i) => (
+                                                    <span key={i} className="px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium border border-blue-100 dark:border-blue-800">
+                                                        {typeof sk === 'object' ? sk.name : sk}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Projects */}
+                                    {selectedScreening.extracted_projects?.length > 0 && (
+                                        <div>
+                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-2">Projects</p>
+                                            <div className="space-y-2">
+                                                {selectedScreening.extracted_projects.map((p, i) => {
+                                                    const name = typeof p === 'object' ? p.name : p
+                                                    const desc = typeof p === 'object' ? p.description : null
+                                                    return (
+                                                        <div key={i} className="flex gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                                            <span className="text-indigo-500 flex-shrink-0 font-bold text-sm mt-0.5">▸</span>
+                                                            <div className="min-w-0">
+                                                                <span className="font-semibold text-sm text-indigo-800 dark:text-indigo-200">{name}</span>
+                                                                {desc && <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">{desc}</p>}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Show message if no profile data yet */}
+                                    {!selectedScreening.extracted_education &&
+                                     !selectedScreening.top_skills?.length &&
+                                     !selectedScreening.extracted_skills?.length &&
+                                     !selectedScreening.extracted_projects?.length && (
+                                        <div className="text-center py-4 text-gray-400">
+                                            <p className="text-sm">No profile data extracted yet.</p>
+                                            <p className="text-xs mt-1">Click <strong>Re-screen</strong> to run AI extraction.</p>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
 
                             {/* Summary */}
                             {selectedScreening.summary && (
@@ -310,51 +383,65 @@ const ResumeScreening = () => {
                             )}
 
                             {/* Strengths / Weaknesses / Gaps */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                {selectedScreening.strengths && (
-                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800">
-                                        <h4 className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm mb-2">✓ Strengths</h4>
-                                        <ul className="space-y-1">
-                                            {selectedScreening.strengths.split(',').map((s, i) => (
-                                                <li key={i} className="text-xs text-emerald-800 dark:text-emerald-300">{s.trim()}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {selectedScreening.weaknesses && (
-                                    <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
-                                        <h4 className="text-red-700 dark:text-red-400 font-semibold text-sm mb-2">✗ Weaknesses</h4>
-                                        <ul className="space-y-1">
-                                            {selectedScreening.weaknesses.split(',').map((s, i) => (
-                                                <li key={i} className="text-xs text-red-800 dark:text-red-300">{s.trim()}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {selectedScreening.skill_gaps && (
-                                    <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-100 dark:border-amber-800">
-                                        <h4 className="text-amber-700 dark:text-amber-400 font-semibold text-sm mb-2">📚 Skill Gaps</h4>
-                                        <ul className="space-y-1">
-                                            {selectedScreening.skill_gaps.split(',').map((s, i) => (
-                                                <li key={i} className="text-xs text-amber-800 dark:text-amber-300">{s.trim()}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
+                            {(selectedScreening.strengths || selectedScreening.weaknesses || selectedScreening.skill_gaps) && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {selectedScreening.strengths && (
+                                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                                            <h4 className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm mb-2">✓ Strengths</h4>
+                                            <ul className="space-y-1">
+                                                {selectedScreening.strengths.split(',').map((s, i) => (
+                                                    <li key={i} className="text-xs text-emerald-800 dark:text-emerald-300">{s.trim()}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {selectedScreening.weaknesses && (
+                                        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
+                                            <h4 className="text-red-700 dark:text-red-400 font-semibold text-sm mb-2">✗ Weaknesses</h4>
+                                            <ul className="space-y-1">
+                                                {selectedScreening.weaknesses.split(',').map((s, i) => (
+                                                    <li key={i} className="text-xs text-red-800 dark:text-red-300">{s.trim()}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {selectedScreening.skill_gaps && (
+                                        <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-100 dark:border-amber-800">
+                                            <h4 className="text-amber-700 dark:text-amber-400 font-semibold text-sm mb-2">📚 Skill Gaps</h4>
+                                            <ul className="space-y-1">
+                                                {selectedScreening.skill_gaps.split(',').map((s, i) => (
+                                                    <li key={i} className="text-xs text-amber-800 dark:text-amber-300">{s.trim()}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                            {/* Full Resume Content */}
+                            {/* Raw Resume Text — collapsible */}
                             {selectedScreening.resume_text && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">📄 Resume Content</h4>
-                                    <pre className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto font-mono">
+                                <details className="group">
+                                    <summary className="cursor-pointer text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 select-none list-none flex items-center gap-2">
+                                        <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        View Raw Resume Text
+                                    </summary>
+                                    <pre className="mt-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto font-mono">
                                         {selectedScreening.resume_text}
                                     </pre>
-                                </div>
+                                </details>
                             )}
 
                             {/* Action buttons */}
                             <div className="flex flex-wrap gap-3 pt-2 border-t dark:border-gray-700">
+                                <button
+                                    onClick={handleRescreen}
+                                    className="py-3 px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition-colors"
+                                    title="Re-run AI screening — useful if score shows 50 or seems incorrect"
+                                >
+                                    🔄 Re-screen
+                                </button>
                                 <button
                                     onClick={handleApproveForVoiceScreening}
                                     className="flex-1 min-w-[140px] py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-semibold text-sm transition-colors"

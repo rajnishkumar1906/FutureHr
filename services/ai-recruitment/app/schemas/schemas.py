@@ -86,6 +86,9 @@ class ResumeScreeningResponse(BaseModel):
     candidate_name: Optional[str] = None
     candidate_email: Optional[str] = None
     job_title: Optional[str] = None
+    resume_text: Optional[str] = None
+    extracted_education: Optional[str] = None
+    extracted_certifications: Optional[str] = None
     created_at: datetime
     class Config:
         from_attributes = True

@@ -16,6 +16,7 @@ from ..schemas.schemas import (
 )
 from ..utils.ai_service import (
     extract_text_from_pdf,
+    extract_resume_profile,
     analyze_resume,
     evaluate_candidate,
     analyze_voice_answers,
@@ -459,37 +460,62 @@ async def screen_resume_async(application_id: int):
             if not job:
                 return
             
-            # Analyze resume
+            resume_text = candidate["resume_text"] or ""
+
+            # ── Step 1: dedicated profile extraction (name, email, top 10 skills, projects) ──
+            # Runs independently so profile data is never lost if scoring fails.
+            profile = await extract_resume_profile(resume_text)
+
+            profile_skills    = profile.get("top_skills", [])     # list of strings
+            profile_projects  = profile.get("projects", [])        # list of {name, description}
+            profile_education = profile.get("education", "")
+            profile_certs     = profile.get("certifications", "")
+            profile_email     = profile.get("email", "")
+
+            # Persist extracted profile back to candidates table immediately
+            await conn.execute(
+                """
+                UPDATE candidates
+                SET skills        = $1,
+                    education     = $2,
+                    experience    = $3,
+                    certifications= $4
+                WHERE id = $5
+                """,
+                json.dumps(profile_skills)   if profile_skills   else (candidate["skills"]   or "[]"),
+                profile_education             if profile_education else (candidate["education"] or ""),
+                json.dumps(profile_projects)  if profile_projects  else (candidate["experience"] or "[]"),
+                profile_certs                 if profile_certs     else (candidate["certifications"] or ""),
+                application["candidate_id"]
+            )
+
+            # ── Step 2: score the candidate against the JD ──
             ai_result = await analyze_resume(
-                candidate["resume_text"] or "",
+                resume_text,
                 job["title"],
                 job["description"] or "",
                 job["requirements"] or ""
             )
-            
-            # Update candidate with extracted info (skills and projects stored as JSON)
-            extracted_skills = ai_result.get("extracted_skills", [])
-            extracted_projects = ai_result.get("extracted_projects", [])
-            extracted_email = ai_result.get("candidate_email", "")
-            await conn.execute(
-                """
-                UPDATE candidates
-                SET skills = $1, education = $2, experience = $3, certifications = $4
-                WHERE id = $5
-                """,
-                json.dumps(extracted_skills) if extracted_skills else candidate["skills"],
-                ai_result.get("extracted_education") or candidate["education"],
-                json.dumps(extracted_projects) if extracted_projects else candidate["experience"],
-                ai_result.get("extracted_certifications") or candidate["certifications"],
-                application["candidate_id"]
-            )
 
-            # Save screening result with top_skills and candidate_email
-            top_skills = ai_result.get("top_skills", [])
+            # top_skills from scoring step carry per-skill relevance scores for the JD.
+            # Fall back to profile skills (without scores) if scoring returned nothing.
+            top_skills_scored = ai_result.get("top_skills", [])
+            if not top_skills_scored and profile_skills:
+                top_skills_scored = [{"name": s, "score": None} for s in profile_skills]
+
+            # Use profile email if scoring didn't extract one
+            final_email = ai_result.get("candidate_email", "") or profile_email
+
             await conn.fetchrow(
                 """
-                INSERT INTO resume_screenings (application_id, candidate_id, job_id, candidate_score, skills_match, experience_match, overall_score, recommendation, analysis, summary, strengths, weaknesses, skill_gaps, top_skills, candidate_email)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                INSERT INTO resume_screenings (
+                    application_id, candidate_id, job_id,
+                    candidate_score, skills_match, experience_match, overall_score,
+                    recommendation, analysis, summary,
+                    strengths, weaknesses, skill_gaps,
+                    top_skills, candidate_email
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                 RETURNING id
                 """,
                 application_id,
@@ -501,12 +527,12 @@ async def screen_resume_async(application_id: int):
                 ai_result["overall_score"],
                 ai_result["recommendation"],
                 ai_result["analysis"],
-                ai_result["summary"],
-                ai_result["strengths"],
-                ai_result["weaknesses"],
-                ai_result["skill_gaps"],
-                json.dumps(top_skills) if top_skills else None,
-                extracted_email or None,
+                ai_result.get("summary", ""),
+                ai_result.get("strengths", ""),
+                ai_result.get("weaknesses", ""),
+                ai_result.get("skill_gaps", ""),
+                json.dumps(top_skills_scored) if top_skills_scored else None,
+                final_email or None,
             )
             
             # Update application status based on recommendation.
@@ -523,7 +549,24 @@ async def screen_resume_async(application_id: int):
         finally:
             await conn.close()
     except Exception as e:
-        print(f"Error in screen_resume_async: {e}")
+        import traceback
+        print(f"[screen_resume_async] FAILED for application {application_id}: {e}\n{traceback.format_exc()}")
+
+
+@router.post("/applications/{application_id}/rescreen")
+async def rescreen_resume(application_id: int, background_tasks: BackgroundTasks):
+    """Re-run resume screening for an application. Useful when Gemini was unavailable on first attempt."""
+    conn = await get_db_connection()
+    try:
+        app = await conn.fetchrow("SELECT id FROM applications WHERE id = $1", application_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="Application not found")
+        # Delete existing screening so screen_resume_async will create a fresh one
+        await conn.execute("DELETE FROM resume_screenings WHERE application_id = $1", application_id)
+    finally:
+        await conn.close()
+    background_tasks.add_task(screen_resume_async, application_id)
+    return {"message": "Re-screening started", "application_id": application_id}
 
 
 @router.get("/applications/{application_id}/resume-screening", response_model=Optional[ResumeScreeningResponse])
@@ -537,6 +580,8 @@ async def get_resume_screening(application_id: int):
                 c.skills AS extracted_skills_json,
                 c.experience AS extracted_projects_json,
                 c.resume_text,
+                c.education AS extracted_education,
+                c.certifications AS extracted_certifications,
                 j.title AS job_title
             FROM resume_screenings rs
             LEFT JOIN candidates c ON rs.candidate_id = c.id
@@ -566,6 +611,8 @@ async def get_resume_screenings():
                 c.skills AS extracted_skills_json,
                 c.experience AS extracted_projects_json,
                 c.resume_text,
+                c.education AS extracted_education,
+                c.certifications AS extracted_certifications,
                 j.title AS job_title
             FROM resume_screenings rs
             LEFT JOIN candidates c ON rs.candidate_id = c.id
