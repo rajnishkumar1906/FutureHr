@@ -88,7 +88,7 @@ const CandidateLogin = () => {
               <div className="flex items-center gap-2"><span>🚀</span> Get hired and join the team</div>
             </div>
             <div className="mt-8 pt-6 border-t border-white/20 text-sm text-white/60">
-              <Link to="/careers/jobs" className="underline hover:text-white">Browse open positions →</Link>
+              Sign in or create an account to browse open positions.
             </div>
           </div>
 

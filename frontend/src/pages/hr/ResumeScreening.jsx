@@ -37,12 +37,16 @@ const ResumeScreening = () => {
 
     const handleSendVoiceInvite = async () => {
         try {
-            await aiRecruitmentApi.sendVoiceInvite(selectedScreening.application_id)
-            addToast('Voice Screening Invite Sent!', 'success')
+            const res = await aiRecruitmentApi.sendVoiceInvite(selectedScreening.application_id)
+            if (res.data?.email_sent) {
+                addToast('Voice screening invite sent to candidate\'s email!', 'success')
+            } else {
+                addToast(`Invite created, but email not sent: ${res.data?.email_error || 'SMTP not configured'}`, 'warning')
+            }
             setSelectedScreening(null)
             fetchScreenings()
-        } catch {
-            addToast('Failed to send invite', 'error')
+        } catch (err) {
+            addToast(err.response?.data?.detail || 'Failed to send invite', 'error')
         }
     }
 

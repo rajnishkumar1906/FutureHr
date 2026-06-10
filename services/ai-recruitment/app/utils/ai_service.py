@@ -181,12 +181,22 @@ Scoring guidance:
 async def generate_voice_questions(
     job_title: str,
     job_description: str,
-    job_requirements: str
+    job_requirements: str,
+    resume_text: Optional[str] = None
 ) -> List[str]:
+    resume_section = f"""
+CANDIDATE RESUME:
+{resume_text}
+
+Generate questions specifically based on this candidate's resume — ask about their actual projects,
+skills, technologies, and experiences listed above. Do NOT ask generic questions.
+""" if resume_text else ""
+
     prompt = f"""
 You are an expert interviewer.
 
-Generate 6 relevant voice screening questions for this job.
+Generate 6 unique, specific voice interview questions for this candidate applying to the role below.
+Each question must be different — no duplicate or similar questions.
 
 JOB TITLE:
 {job_title}
@@ -196,7 +206,7 @@ JOB DESCRIPTION:
 
 JOB REQUIREMENTS:
 {job_requirements}
-
+{resume_section}
 Return ONLY valid JSON in this structure:
 
 {{
@@ -212,12 +222,12 @@ Return ONLY valid JSON in this structure:
     except Exception:
         logger.exception("Question generation failed")
         return [
-            "Tell me about yourself.",
-            "Why are you interested in this role?",
-            "What relevant experience do you have?",
-            "What are your greatest strengths?",
-            "Describe a challenging project you worked on.",
-            "Why should we hire you?",
+            "Tell me about yourself and your background.",
+            "Why are you interested in this specific role?",
+            "Describe your most relevant technical experience.",
+            "Walk me through a challenging project and how you solved it.",
+            "What are your key strengths that make you suitable for this position?",
+            "Where do you see yourself growing professionally in the next 2 years?",
         ]
 
 

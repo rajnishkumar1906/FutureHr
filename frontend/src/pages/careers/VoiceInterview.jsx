@@ -14,12 +14,12 @@ const VoiceInterview = () => {
   const [error, setError] = useState('')
   const [interviewData, setInterviewData] = useState(null)
   const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState([])
+  const [answers, setAnswers] = useState([]) // [{question, answer}]
   const [completed, setCompleted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [readyToRecord, setReadyToRecord] = useState(false)
-  const [micStatus, setMicStatus] = useState('pending') // 'pending' | 'requesting' | 'granted' | 'denied'
+  const [micStatus, setMicStatus] = useState('pending')
 
   const answersRef = useRef([])
 
@@ -28,7 +28,6 @@ const VoiceInterview = () => {
       try {
         const res = await aiRecruitmentApi.validateVoiceCode(code)
         setInterviewData(res.data)
-        // Check if mic permission was already granted
         if (navigator.permissions) {
           const result = await navigator.permissions.query({ name: 'microphone' })
           if (result.state === 'granted') setMicStatus('granted')
@@ -47,14 +46,13 @@ const VoiceInterview = () => {
     setMicStatus('requesting')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(t => t.stop()) // release immediately, just checking
+      stream.getTracks().forEach(t => t.stop())
       setMicStatus('granted')
     } catch {
       setMicStatus('denied')
     }
   }
 
-  // Speak question whenever it changes and data is loaded
   useEffect(() => {
     if (!interviewData) return
     const question = interviewData.questions[currentQuestion]
@@ -69,36 +67,27 @@ const VoiceInterview = () => {
     utterance.rate = 0.95
     utterance.pitch = 1.05
 
-    // Pick a clear voice if available
     const voices = window.speechSynthesis.getVoices()
     const preferred = voices.find(v =>
       v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha'))
     ) || voices.find(v => v.lang.startsWith('en'))
     if (preferred) utterance.voice = preferred
 
-    utterance.onend = () => {
-      setSpeaking(false)
-      setReadyToRecord(true)
-    }
+    utterance.onend = () => { setSpeaking(false); setReadyToRecord(true) }
+    utterance.onerror = () => { setSpeaking(false); setReadyToRecord(true) }
 
-    utterance.onerror = () => {
-      setSpeaking(false)
-      setReadyToRecord(true)
-    }
-
-    // Small delay so the UI updates before speaking
     const t = setTimeout(() => window.speechSynthesis.speak(utterance), 400)
     return () => clearTimeout(t)
   }, [currentQuestion, interviewData])
 
-  // Voices may load async in some browsers
   useEffect(() => {
     window.speechSynthesis?.getVoices()
     window.speechSynthesis?.addEventListener('voiceschanged', () => window.speechSynthesis.getVoices())
   }, [])
 
   const handleRecordingComplete = (_blob, _url, transcript) => {
-    const newAnswers = [...answersRef.current, transcript]
+    const question = interviewData.questions[currentQuestion]
+    const newAnswers = [...answersRef.current, { question, answer: transcript }]
     answersRef.current = newAnswers
     setAnswers(newAnswers)
     setReadyToRecord(false)
@@ -114,18 +103,20 @@ const VoiceInterview = () => {
   const submitAnswers = async (finalAnswers) => {
     try {
       setSubmitting(true)
-      await aiRecruitmentApi.submitVoiceAnswers(interviewData.application.id, finalAnswers)
+      await aiRecruitmentApi.submitVoiceAnswers(
+        interviewData.application.id,
+        finalAnswers.map(a => a.answer)
+      )
       setCompleted(true)
       addToast('Interview completed successfully!', 'success')
       setTimeout(() => navigate('/careers/status'), 2500)
-    } catch (err) {
+    } catch {
       addToast('Failed to submit interview. Please try again.', 'error')
     } finally {
       setSubmitting(false)
     }
   }
 
-  // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -140,7 +131,6 @@ const VoiceInterview = () => {
     )
   }
 
-  // ─── Error ─────────────────────────────────────────────────────────────────
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -159,7 +149,6 @@ const VoiceInterview = () => {
     )
   }
 
-  // ─── Completed ─────────────────────────────────────────────────────────────
   if (completed) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -175,7 +164,6 @@ const VoiceInterview = () => {
     )
   }
 
-  // ─── Submitting ────────────────────────────────────────────────────────────
   if (submitting) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -190,7 +178,6 @@ const VoiceInterview = () => {
     )
   }
 
-  // ─── Mic Permission Gate ────────────────────────────────────────────────────
   if (micStatus !== 'granted') {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -204,14 +191,14 @@ const VoiceInterview = () => {
               Microphone Access Required
             </h2>
             <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm leading-relaxed">
-              This voice interview needs your microphone to record your answers. Click below to allow access — a browser popup will appear asking for permission.
+              This voice interview needs your microphone to record your answers. Click below to allow access.
             </p>
 
             {micStatus === 'denied' && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-5 text-left text-sm">
                 <p className="font-semibold text-red-700 dark:text-red-400 mb-1">Permission was denied</p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Click the 🔒 lock icon in your browser's address bar → set Microphone to <strong>Allow</strong> → reload this page.
+                  Click the 🔒 lock icon → set Microphone to <strong>Allow</strong> → reload this page.
                 </p>
               </div>
             )}
@@ -232,16 +219,8 @@ const VoiceInterview = () => {
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Waiting for permission...
                 </>
-              ) : micStatus === 'denied' ? (
-                '🔄 Try Again'
-              ) : (
-                '🎙️ Allow Microphone & Start Interview'
-              )}
+              ) : micStatus === 'denied' ? '🔄 Try Again' : '🎙️ Allow Microphone & Start Interview'}
             </button>
-
-            <p className="text-xs text-gray-400 mt-4">
-              Your audio is only used for this interview and is not stored after analysis.
-            </p>
           </div>
         </div>
       </div>
@@ -250,7 +229,6 @@ const VoiceInterview = () => {
 
   const question = interviewData.questions[currentQuestion]
   const total = interviewData.questions.length
-
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -261,9 +239,7 @@ const VoiceInterview = () => {
           {/* Header */}
           <div className="bg-gradient-to-r from-indigo-600 to-cyan-600 px-8 py-6">
             <h1 className="text-2xl font-bold text-white">Voice Interview — {interviewData.job.title}</h1>
-            <p className="text-white/80 text-sm mt-1">
-              Question {currentQuestion + 1} of {total}
-            </p>
+            <p className="text-white/80 text-sm mt-1">Question {currentQuestion + 1} of {total}</p>
             <div className="mt-3 h-1.5 bg-white/30 rounded-full overflow-hidden">
               <div
                 className="h-full bg-white rounded-full transition-all duration-500"
@@ -274,14 +250,13 @@ const VoiceInterview = () => {
 
           <div className="p-8 space-y-6">
 
-            {/* Question card */}
+            {/* Current question */}
             <div className={`rounded-xl p-6 border-2 transition-all duration-300 ${
               speaking
                 ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
                 : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'
             }`}>
               <div className="flex items-start gap-4">
-                {/* Speaker icon / animation */}
                 <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ${
                   speaking ? 'bg-indigo-600 animate-pulse shadow-lg shadow-indigo-300' : 'bg-gray-200 dark:bg-gray-600'
                 }`}>
@@ -292,36 +267,28 @@ const VoiceInterview = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex gap-1">
                         {[0, 1, 2, 3].map(i => (
-                          <div
-                            key={i}
-                            className="w-1 bg-indigo-500 rounded-full animate-bounce"
-                            style={{ height: '14px', animationDelay: `${i * 0.12}s` }}
-                          />
+                          <div key={i} className="w-1 bg-indigo-500 rounded-full animate-bounce" style={{ height: '14px', animationDelay: `${i * 0.12}s` }} />
                         ))}
                       </div>
-                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
-                        Speaking...
-                      </span>
+                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">Speaking...</span>
                     </div>
                   )}
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white leading-relaxed">
-                    {question}
-                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white leading-relaxed">{question}</p>
                 </div>
               </div>
             </div>
 
-            {/* Instruction / recorder area */}
+            {/* Recorder */}
             {speaking ? (
               <div className="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
-                Please listen to the question. Recording will start automatically when done.
+                Please listen to the question. You can record your answer once it finishes.
               </div>
             ) : readyToRecord ? (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                    Your turn — answer the question above
+                    Your turn — answer the question above, then click "Complete Answer"
                   </p>
                 </div>
                 <VoiceRecorder
@@ -333,11 +300,23 @@ const VoiceInterview = () => {
               </div>
             ) : null}
 
-            {/* Previous answers count */}
+            {/* Previous Q&A */}
             {answers.length > 0 && (
-              <p className="text-xs text-gray-400 text-center">
-                {answers.length} of {total} answers recorded
-              </p>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-500 mb-3">Previous Answers</h4>
+                <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                  {answers.map((item, i) => (
+                    <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                      <div className="bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                        Q{i + 1}: {item.question}
+                      </div>
+                      <div className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800">
+                        {item.answer || <span className="italic text-gray-400">No speech detected</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

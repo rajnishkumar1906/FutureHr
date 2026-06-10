@@ -11,6 +11,7 @@ from ..schemas.schemas import (
     VoiceQuestionsResponse,
     SubmitVoiceAnswersRequest,
     UpdateApplicationStatusRequest,
+    ScoreVoiceScreeningRequest,
     ChatRequest
 )
 from ..utils.ai_service import (
@@ -592,27 +593,36 @@ async def submit_voice_answers(application_id: int, request: SubmitVoiceAnswersR
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
         
-        # Get voice questions for the job
-        voice_q = await conn.fetchrow("SELECT * FROM voice_questions WHERE job_id = $1", application["job_id"])
-        if not voice_q:
-            raise HTTPException(status_code=404, detail="Voice questions not found")
-        
-        questions = json.loads(voice_q["questions"])
-        
+        # Get per-application questions from application_form_data (set during validate)
+        form_data_raw = application["application_form_data"]
+        if isinstance(form_data_raw, str):
+            try:
+                form_data = json.loads(form_data_raw)
+            except json.JSONDecodeError:
+                form_data = {}
+        else:
+            form_data = form_data_raw or {}
+
+        questions = form_data.get("voice_questions") or []
+
+        # Fall back to job-level questions if per-application ones not found
+        if not questions:
+            voice_q = await conn.fetchrow("SELECT * FROM voice_questions WHERE job_id = $1", application["job_id"])
+            if voice_q:
+                questions = json.loads(voice_q["questions"])
+
         # Save individual answers
+        # Delete any previous answers for this application first
+        await conn.execute("DELETE FROM voice_answers WHERE application_id = $1", application_id)
         for i, answer in enumerate(request.answers):
             await conn.execute(
-                """
-                INSERT INTO voice_answers (application_id, question_index, answer)
-                VALUES ($1, $2, $3)
-                """,
+                "INSERT INTO voice_answers (application_id, question_index, answer) VALUES ($1, $2, $3)",
                 application_id, i, answer
             )
-        
-        # Analyze answers
-        ai_result = await analyze_voice_answers(request.answers, questions)
-        
-        # Save voice screening result
+
+        # Save voice screening result with 0 scores — HR will score manually
+        # Delete any previous screening first
+        await conn.execute("DELETE FROM voice_screenings WHERE application_id = $1", application_id)
         voice_screening = await conn.fetchrow(
             """
             INSERT INTO voice_screenings (application_id, candidate_id, communication_score, confidence_score, recommendation, analysis)
@@ -621,27 +631,24 @@ async def submit_voice_answers(application_id: int, request: SubmitVoiceAnswersR
             """,
             application_id,
             application["candidate_id"],
-            ai_result["communication_score"],
-            ai_result["confidence_score"],
-            ai_result["recommendation"],
-            ai_result["analysis"]
+            0,
+            0,
+            "Pending HR Review",
+            "Awaiting manual review and scoring by HR."
         )
-        
-        # AI never auto-rejects after voice screening — HR decides manually.
-        new_status = "Voice Screened"
-        
+
         await conn.execute(
-            "UPDATE applications SET status = $1 WHERE id = $2",
-            new_status, application_id
+            "UPDATE applications SET status = 'Voice Screened' WHERE id = $1",
+            application_id
         )
-        
+
         return dict(voice_screening)
     finally:
         await conn.close()
 
 
 async def _attach_transcript(conn, screening_dict: dict) -> dict:
-    """Fetch Q&A pairs from voice_answers + voice_questions and attach as transcript."""
+    """Fetch Q&A pairs from voice_answers + per-application questions and attach as transcript."""
     app_id = screening_dict.get("application_id")
     if not app_id:
         return screening_dict
@@ -649,14 +656,30 @@ async def _attach_transcript(conn, screening_dict: dict) -> dict:
         "SELECT question_index, answer FROM voice_answers WHERE application_id = $1 ORDER BY question_index",
         app_id
     )
-    application = await conn.fetchrow("SELECT job_id FROM applications WHERE id = $1", app_id)
-    questions_row = None
+    application = await conn.fetchrow("SELECT job_id, application_form_data FROM applications WHERE id = $1", app_id)
+    questions = []
     if application:
-        questions_row = await conn.fetchrow("SELECT questions FROM voice_questions WHERE job_id = $1", application["job_id"])
-    questions = json.loads(questions_row["questions"]) if questions_row else []
+        # Prefer per-application questions stored in form_data
+        form_data_raw = application["application_form_data"]
+        form_data = {}
+        if isinstance(form_data_raw, str):
+            try:
+                form_data = json.loads(form_data_raw)
+            except json.JSONDecodeError:
+                pass
+        elif form_data_raw:
+            form_data = form_data_raw
+        questions = form_data.get("voice_questions") or []
+        # Fall back to job-level questions
+        if not questions:
+            questions_row = await conn.fetchrow("SELECT questions FROM voice_questions WHERE job_id = $1", application["job_id"])
+            if questions_row:
+                questions = json.loads(questions_row["questions"])
     transcript = [
-        {"question": questions[row["question_index"]] if row["question_index"] < len(questions) else f"Q{row['question_index']+1}",
-         "answer": row["answer"]}
+        {
+            "question": questions[row["question_index"]] if row["question_index"] < len(questions) else f"Q{row['question_index']+1}",
+            "answer": row["answer"]
+        }
         for row in answers
     ]
     screening_dict["transcript"] = transcript
@@ -696,6 +719,35 @@ async def get_voice_screenings():
             row = await _attach_transcript(conn, row)
             result.append(row)
         return result
+    finally:
+        await conn.close()
+
+
+# ==================== HR Manual Score Route ====================
+@router.put("/voice-screenings/{screening_id}/score")
+async def score_voice_screening(screening_id: int, request: ScoreVoiceScreeningRequest):
+    """HR manually scores a voice screening and optionally sets hire/reject decision."""
+    conn = await get_db_connection()
+    try:
+        screening = await conn.fetchrow("SELECT * FROM voice_screenings WHERE id = $1", screening_id)
+        if not screening:
+            raise HTTPException(status_code=404, detail="Voice screening not found")
+
+        communication_score = request.communication_score
+        confidence_score = request.confidence_score
+        recommendation = request.recommendation or screening["recommendation"]
+        analysis = request.analysis if request.analysis is not None else screening["analysis"]
+
+        updated = await conn.fetchrow(
+            """
+            UPDATE voice_screenings
+            SET communication_score = $1, confidence_score = $2, recommendation = $3, analysis = $4
+            WHERE id = $5
+            RETURNING id, application_id, candidate_id, communication_score, confidence_score, recommendation, analysis, created_at
+            """,
+            float(communication_score), float(confidence_score), recommendation, analysis, screening_id
+        )
+        return dict(updated)
     finally:
         await conn.close()
 
@@ -987,11 +1039,11 @@ async def send_voice_invite(application_id: int):
         email_error = None
         try:
             cfg = await _get_email_config(conn)
-            smtp_user = cfg.get("smtp_user") or settings.SMTP_USER
-            smtp_password = cfg.get("smtp_password") or settings.SMTP_PASSWORD
-            smtp_host = cfg.get("smtp_host") or settings.SMTP_HOST
-            smtp_port = int(cfg.get("smtp_port") or settings.SMTP_PORT)
-            smtp_from = cfg.get("smtp_from") or settings.SMTP_FROM or smtp_user
+            smtp_user = (cfg.get("smtp_user") or settings.SMTP_USER or "").strip()
+            smtp_password = (cfg.get("smtp_password") or settings.SMTP_PASSWORD or "").strip().replace(" ", "")
+            smtp_host = (cfg.get("smtp_host") or settings.SMTP_HOST or "smtp.gmail.com").strip()
+            smtp_port = int(cfg.get("smtp_port") or settings.SMTP_PORT or 587)
+            smtp_from = (cfg.get("smtp_from") or settings.SMTP_FROM or smtp_user).strip()
 
             if smtp_user and smtp_password:
                 import asyncio as _asyncio
@@ -1252,23 +1304,44 @@ async def validate_voice_code(code: str):
         application = await conn.fetchrow("SELECT * FROM applications WHERE voice_screening_code = $1", code)
         if not application:
             raise HTTPException(status_code=404, detail="Invalid voice screening code")
-        
+
         candidate = await conn.fetchrow("SELECT * FROM candidates WHERE id = $1", application["candidate_id"])
         job = await conn.fetchrow("SELECT * FROM jobs WHERE id = $1", application["job_id"])
-        voice_questions = await conn.fetchrow("SELECT * FROM voice_questions WHERE job_id = $1", job["id"])
-        
+
         app_dict = dict(application)
         if isinstance(app_dict["application_form_data"], str):
             try:
                 app_dict["application_form_data"] = json.loads(app_dict["application_form_data"])
             except json.JSONDecodeError:
                 app_dict["application_form_data"] = {}
-        
+
+        form_data = app_dict["application_form_data"] or {}
+
+        # Use cached per-application questions if already generated
+        if form_data.get("voice_questions"):
+            questions = form_data["voice_questions"]
+        else:
+            # Generate questions from candidate's resume so each candidate gets unique questions
+            resume_text = candidate["resume_text"] if candidate else None
+            questions = await generate_voice_questions(
+                job_title=job["title"],
+                job_description=job.get("description") or "",
+                job_requirements=job.get("requirements") or "",
+                resume_text=resume_text
+            )
+            # Cache them so the same questions are used when scoring
+            form_data["voice_questions"] = questions
+            await conn.execute(
+                "UPDATE applications SET application_form_data = $1 WHERE id = $2",
+                json.dumps(form_data), application["id"]
+            )
+            app_dict["application_form_data"] = form_data
+
         return {
             "application": app_dict,
             "candidate": dict(candidate),
             "job": dict(job),
-            "questions": json.loads(voice_questions["questions"]) if voice_questions else []
+            "questions": questions
         }
     finally:
         await conn.close()

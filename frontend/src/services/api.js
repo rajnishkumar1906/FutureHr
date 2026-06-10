@@ -148,6 +148,7 @@ export const aiRecruitmentApi = {
   submitVoiceAnswers: (applicationId, answers) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/voice-answers`, { answers }),
   getVoiceScreeningForApplication: (applicationId) => apiClient.get(`/api/ai-recruitment/applications/${applicationId}/voice-screening`),
   getVoiceScreenings: () => apiClient.get('/api/ai-recruitment/voice-screenings'),
+  scoreVoiceScreening: (screeningId, data) => apiClient.put(`/api/ai-recruitment/voice-screenings/${screeningId}/score`, data),
   
   // ==================== CANDIDATE EVALUATIONS ====================
   evaluateApplication: (applicationId) => apiClient.post(`/api/ai-recruitment/applications/${applicationId}/evaluate`),

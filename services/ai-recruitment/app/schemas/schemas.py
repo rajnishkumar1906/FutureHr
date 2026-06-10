@@ -107,12 +107,13 @@ class VoiceScreeningResponse(BaseModel):
     id: int
     application_id: int
     candidate_id: int
-    communication_score: float
-    confidence_score: float
-    recommendation: str
-    analysis: str
+    communication_score: Optional[float] = None
+    confidence_score: Optional[float] = None
+    recommendation: Optional[str] = None
+    analysis: Optional[str] = None
     candidate_name: Optional[str] = None
     position: Optional[str] = None
+    transcript: Optional[List[Dict[str, Any]]] = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -125,6 +126,12 @@ class SubmitVoiceAnswersRequest(BaseModel):
 
 class UpdateApplicationStatusRequest(BaseModel):
     status: str
+
+class ScoreVoiceScreeningRequest(BaseModel):
+    communication_score: float
+    confidence_score: float
+    recommendation: Optional[str] = None
+    analysis: Optional[str] = None
 
 class ChatRequest(BaseModel):
     message: str

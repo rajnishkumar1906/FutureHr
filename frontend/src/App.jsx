@@ -88,9 +88,9 @@ const App = () => {
     <BrowserRouter>
       <Toaster toasts={toasts} onRemove={removeToast} />
       <Routes>
-        {/* ── Public careers (no login needed) ── */}
-        <Route path="/careers" element={<CareersHome />} />
-        <Route path="/careers/jobs" element={<JobListings />} />
+        {/* ── Careers — require candidate login to view jobs ── */}
+        <Route path="/careers" element={<CandidateRoute><CareersHome /></CandidateRoute>} />
+        <Route path="/careers/jobs" element={<CandidateRoute><JobListings /></CandidateRoute>} />
 
         {/* ── Candidate auth ── */}
         <Route
